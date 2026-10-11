@@ -1,6 +1,7 @@
 """
 ui/habit_view.py - Modern Habit Tracker View for Chiikawa Study Planner
 Tracks daily habits, study consistency, streaks, and completion history with 7-day checkboxes.
+Refactored with PageHeader, Card, PrimaryButton, GhostButton, StyledCheckBox, and EmptyState.
 """
 
 import tkinter as tk
@@ -10,6 +11,14 @@ from typing import Dict, Any, List
 from theme import Theme
 import database
 import icons
+from ui.components.widgets import (
+    PageHeader,
+    Card,
+    PrimaryButton,
+    GhostButton,
+    StyledCheckBox,
+    EmptyState
+)
 from ui.components.modal import HabitModal
 from ui.components.toast import ToastNotification
 
@@ -25,47 +34,31 @@ class HabitView(ctk.CTkFrame):
     def _build_ui(self):
         colors = Theme.current()
 
-        header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(fill="x", padx=24, pady=(16, 12))
+        # 1. Page Header with Action Button
+        header = PageHeader(
+            self,
+            title="Habit Tracker",
+            subtitle="Build positive daily study routines and maintain consistency over time."
+        )
+        header.pack(fill="x", padx=24, pady=(20, 14))
 
-        title_box = ctk.CTkFrame(header, fg_color="transparent")
-        title_box.pack(side="left")
-
-        ctk.CTkLabel(
-            title_box,
-            text="Habit Tracker",
-            font=Theme.font_title(),
-            text_color=colors["text_primary"]
-        ).pack(anchor="w")
-
-        ctk.CTkLabel(
-            title_box,
-            text="Build positive daily study routines and maintain consistency over time.",
-            font=Theme.font_body(),
-            text_color=colors["text_secondary"]
-        ).pack(anchor="w")
-
-        ic_plus = icons.get_icon("plus", size=14, color="#FFFFFF")
-        btn_add = ctk.CTkButton(
-            header,
+        ic_plus = icons.get_icon("plus", size=16, color="#FFFFFF")
+        btn_add = PrimaryButton(
+            header.actions_container,
             text=" New Habit",
             image=ic_plus,
-            compound="left",
-            font=Theme.font_body_bold(),
-            fg_color=colors["accent_pink"],
-            hover_color=colors["accent_pink_hover"],
-            text_color="#FFFFFF",
-            corner_radius=10,
-            height=36,
-            command=self._open_add_habit_modal
+            command=self._open_add_habit_modal,
+            width=136,
+            height=Theme.BTN_HEIGHT
         )
         btn_add.pack(side="right")
 
+        # 2. Main Scrollable Container
         self.content_scroll = ctk.CTkScrollableFrame(
             self,
             fg_color="transparent",
-            scrollbar_button_color=colors["border_subtle"],
-            scrollbar_button_hover_color=colors["accent_pink"]
+            scrollbar_button_color=(Theme.LIGHT["border_subtle"], Theme.DARK["border_subtle"]),
+            scrollbar_button_hover_color=(Theme.LIGHT["accent_pink"], Theme.DARK["accent_pink"])
         )
         self.content_scroll.pack(fill="both", expand=True, padx=24, pady=(0, 16))
 
@@ -85,22 +78,20 @@ class HabitView(ctk.CTkFrame):
         habit_logs = database.get_habit_logs_for_range(start_str, end_str)
 
         # Weekly Consistency Card
-        overview_card = ctk.CTkFrame(
+        overview_card = Card(
             self.content_scroll,
-            fg_color=colors["bg_card"],
-            corner_radius=16,
-            border_width=1,
-            border_color=colors["border"]
+            corner_radius=Theme.RADIUS_LG,
+            hoverable=False
         )
-        overview_card.pack(fill="x", pady=(0, 14))
+        overview_card.pack(fill="x", pady=(0, 16))
 
         ov_inner = ctk.CTkFrame(overview_card, fg_color="transparent")
-        ov_inner.pack(fill="both", expand=True, padx=20, pady=16)
+        ov_inner.pack(fill="both", expand=True, padx=Theme.CARD_PAD_X, pady=Theme.CARD_PAD_Y)
 
         ctk.CTkLabel(
             ov_inner,
             text=f"Weekly Routine: {start_of_week.strftime('%b %d')} - {week_days[-1].strftime('%b %d')}",
-            font=Theme.font_header(),
+            font=Theme.font_card_title(),
             text_color=colors["text_primary"]
         ).pack(anchor="w")
 
@@ -113,35 +104,49 @@ class HabitView(ctk.CTkFrame):
             text=f"Weekly Consistency: {total_done} of {total_possible} completed ({pct}%)",
             font=Theme.font_body(),
             text_color=colors["text_secondary"]
-        ).pack(anchor="w", pady=(2, 8))
+        ).pack(anchor="w", pady=(3, 10))
 
-        p_bar = ctk.CTkProgressBar(ov_inner, height=6, corner_radius=3, fg_color=colors["bg_card_secondary"], progress_color=colors["accent_pink"])
+        p_bar = ctk.CTkProgressBar(
+            ov_inner,
+            height=8,
+            corner_radius=4,
+            fg_color=colors["bg_card_secondary"],
+            progress_color=colors["accent_pink"]
+        )
         p_bar.pack(fill="x")
         p_bar.set(pct / 100.0)
 
         if not habits:
-            ctk.CTkLabel(
+            empty = EmptyState(
                 self.content_scroll,
-                text="No habits tracked yet. Click 'New Habit' to build your daily routine.",
-                font=Theme.font_body(),
-                text_color=colors["text_secondary"]
-            ).pack(pady=30)
+                title="No habits tracked yet",
+                description="Small daily steps lead to huge achievements.\nAdd your first habit routine to start your streak!",
+                mascot_name="hya",
+                action_text="+ Create Habit",
+                action_command=self._open_add_habit_modal
+            )
+            empty.pack(fill="x", pady=24)
             return
 
         # Table Card
-        table_card = ctk.CTkFrame(
+        table_card = Card(
             self.content_scroll,
-            fg_color=colors["bg_card"],
-            corner_radius=16,
-            border_width=1,
-            border_color=colors["border"]
+            corner_radius=Theme.RADIUS_LG,
+            hoverable=False
         )
         table_card.pack(fill="both", expand=True)
 
-        header_row = ctk.CTkFrame(table_card, fg_color=colors["bg_card_secondary"], height=38, corner_radius=10)
-        header_row.pack(fill="x", padx=10, pady=(10, 6))
+        header_row = ctk.CTkFrame(table_card, fg_color=colors["bg_card_secondary"], height=42, corner_radius=10)
+        header_row.pack(fill="x", padx=12, pady=(12, 6))
 
-        ctk.CTkLabel(header_row, text="Habit Name", font=Theme.font_subheader(), text_color=colors["text_secondary"], width=200, anchor="w").pack(side="left", padx=12)
+        ctk.CTkLabel(
+            header_row,
+            text="Habit Name",
+            font=Theme.font_body_bold(),
+            text_color=colors["text_secondary"],
+            width=220,
+            anchor="w"
+        ).pack(side="left", padx=14)
 
         days_box = ctk.CTkFrame(header_row, fg_color="transparent")
         days_box.pack(side="left", fill="x", expand=True)
@@ -157,8 +162,21 @@ class HabitView(ctk.CTkFrame):
                 justify="center"
             ).grid(row=0, column=col_idx, sticky="ew")
 
-        ctk.CTkLabel(header_row, text="Streak", font=Theme.font_subheader(), text_color=colors["text_secondary"], width=80).pack(side="left", padx=10)
-        ctk.CTkLabel(header_row, text="Actions", font=Theme.font_subheader(), text_color=colors["text_secondary"], width=50).pack(side="right", padx=(0, 10))
+        ctk.CTkLabel(
+            header_row,
+            text="Streak",
+            font=Theme.font_body_bold(),
+            text_color=colors["text_secondary"],
+            width=90
+        ).pack(side="left", padx=10)
+
+        ctk.CTkLabel(
+            header_row,
+            text="Actions",
+            font=Theme.font_body_bold(),
+            text_color=colors["text_secondary"],
+            width=50
+        ).pack(side="right", padx=(0, 14))
 
         for habit in habits:
             self._render_habit_row(table_card, habit, week_days, habit_logs.get(habit["id"], set()))
@@ -168,14 +186,20 @@ class HabitView(ctk.CTkFrame):
         hid = habit["id"]
         streak_info = database.get_habit_streak(hid)
 
-        row_frame = ctk.CTkFrame(parent, fg_color="transparent", height=44)
-        row_frame.pack(fill="x", padx=10, pady=3)
+        row_frame = ctk.CTkFrame(parent, fg_color="transparent", height=48)
+        row_frame.pack(fill="x", padx=12, pady=3)
 
-        info_box = ctk.CTkFrame(row_frame, fg_color="transparent", width=200)
-        info_box.pack(side="left", padx=12)
+        info_box = ctk.CTkFrame(row_frame, fg_color="transparent", width=220)
+        info_box.pack(side="left", padx=14)
         info_box.pack_propagate(False)
 
-        ctk.CTkLabel(info_box, text=habit["title"], font=Theme.font_body_bold(), text_color=colors["text_primary"], anchor="w").pack(fill="x", pady=6)
+        ctk.CTkLabel(
+            info_box,
+            text=habit["title"],
+            font=Theme.font_body_bold(),
+            text_color=colors["text_primary"],
+            anchor="w"
+        ).pack(fill="x", pady=8)
 
         chk_box = ctk.CTkFrame(row_frame, fg_color="transparent")
         chk_box.pack(side="left", fill="x", expand=True)
@@ -186,22 +210,15 @@ class HabitView(ctk.CTkFrame):
             is_checked = (d_str in completed_dates)
             var_chk = tk.BooleanVar(value=is_checked)
 
-            chk = ctk.CTkCheckBox(
+            chk = StyledCheckBox(
                 chk_box,
                 text="",
                 variable=var_chk,
-                width=22,
-                checkbox_width=20,
-                checkbox_height=20,
-                corner_radius=5,
-                fg_color=colors["accent_pink"],
-                hover_color=colors["accent_pink_hover"],
-                border_color=colors["border"],
                 command=lambda h=hid, ds=d_str: self._toggle_habit(h, ds)
             )
             chk.grid(row=0, column=col_idx)
 
-        streak_box = ctk.CTkFrame(row_frame, fg_color="transparent", width=80)
+        streak_box = ctk.CTkFrame(row_frame, fg_color="transparent", width=90)
         streak_box.pack(side="left", padx=10)
         streak_box.pack_propagate(False)
 
@@ -212,21 +229,19 @@ class HabitView(ctk.CTkFrame):
             font=Theme.font_tag(),
             text_color="#FFFFFF" if cur_streak > 0 else colors["text_secondary"],
             fg_color=colors["accent_pink"] if cur_streak > 0 else colors["bg_card_secondary"],
-            corner_radius=5,
-            padx=7,
-            pady=2
+            corner_radius=6,
+            padx=8,
+            pady=3
         )
         streak_pill.pack(anchor="center")
 
-        ic_trash = icons.get_icon("trash", size=13, color="#D94161")
-        btn_del = ctk.CTkButton(
+        ic_trash = icons.get_icon("trash", size=15, color=colors["priority_high_fg"])
+        btn_del = GhostButton(
             row_frame,
             text="",
             image=ic_trash,
-            width=28,
-            height=28,
-            fg_color="transparent",
-            hover_color=colors["bg_card_secondary"],
+            width=32,
+            height=32,
             command=lambda h=hid: self._delete_habit(h)
         )
         btn_del.pack(side="right", padx=(0, 10))

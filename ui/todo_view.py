@@ -1,6 +1,7 @@
 """
 ui/todo_view.py - Modern Daily To-Do List View for Chiikawa Study Planner
-Manages tasks, categories, priorities, due dates, and status filters with vector-styled icons.
+Manages tasks, categories, priorities, due dates, and status filters.
+Refactored with PageHeader, Card, PrimaryButton, GhostButton, StyledEntry, StyledCheckBox, and EmptyState.
 """
 
 import tkinter as tk
@@ -10,6 +11,15 @@ from typing import Optional, Any
 from theme import Theme
 import database
 import icons
+from ui.components.widgets import (
+    PageHeader,
+    Card,
+    PrimaryButton,
+    GhostButton,
+    StyledEntry,
+    StyledCheckBox,
+    EmptyState
+)
 from ui.components.modal import TaskModal
 from ui.components.toast import ToastNotification
 
@@ -30,61 +40,43 @@ class TodoView(ctk.CTkFrame):
     def _build_ui(self):
         colors = Theme.current()
 
-        # Top Header & Action Row
-        header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        header_frame.pack(fill="x", padx=24, pady=(16, 12))
+        # 1. Page Header with Action Button
+        header = PageHeader(
+            self,
+            title="Daily Tasks",
+            subtitle="Organize your daily studies, assignments, and personal goals."
+        )
+        header.pack(fill="x", padx=24, pady=(20, 14))
 
-        title_box = ctk.CTkFrame(header_frame, fg_color="transparent")
-        title_box.pack(side="left")
-
-        ctk.CTkLabel(
-            title_box,
-            text="Daily Tasks",
-            font=Theme.font_title(),
-            text_color=colors["text_primary"]
-        ).pack(anchor="w")
-
-        ctk.CTkLabel(
-            title_box,
-            text="Organize your daily studies, assignments, and personal goals.",
-            font=Theme.font_body(),
-            text_color=colors["text_secondary"]
-        ).pack(anchor="w")
-
-        ic_plus = icons.get_icon("plus", size=14, color="#FFFFFF")
-        btn_new_task = ctk.CTkButton(
-            header_frame,
+        ic_plus = icons.get_icon("plus", size=16, color="#FFFFFF")
+        btn_new_task = PrimaryButton(
+            header.actions_container,
             text=" New Task",
             image=ic_plus,
-            compound="left",
-            font=Theme.font_body_bold(),
-            fg_color=colors["accent_pink"],
-            hover_color=colors["accent_pink_hover"],
-            text_color="#FFFFFF",
-            corner_radius=10,
-            height=36,
-            command=self._open_new_task_modal
+            command=self._open_new_task_modal,
+            width=136,
+            height=Theme.BTN_HEIGHT
         )
         btn_new_task.pack(side="right")
 
-        # Filter & Search Toolbar Card
-        toolbar = ctk.CTkFrame(
+        # 2. Filter & Search Toolbar Card
+        toolbar = Card(
             self,
-            fg_color=colors["bg_card"],
-            corner_radius=12,
-            border_width=1,
-            border_color=colors["border"]
+            corner_radius=Theme.RADIUS_MD,
+            hoverable=False
         )
-        toolbar.pack(fill="x", padx=24, pady=(0, 12))
+        toolbar.pack(fill="x", padx=24, pady=(0, 14))
 
         tb_inner = ctk.CTkFrame(toolbar, fg_color="transparent")
-        tb_inner.pack(fill="x", padx=14, pady=10)
+        tb_inner.pack(fill="x", padx=16, pady=12)
 
         # Status Segmented Button (All / Active / Completed)
         self.seg_status = ctk.CTkSegmentedButton(
             tb_inner,
             values=["All", "Active", "Completed"],
-            font=Theme.font_small(),
+            font=Theme.font_body(),
+            height=36,
+            corner_radius=10,
             selected_color=colors["accent_pink"],
             selected_hover_color=colors["accent_pink_hover"],
             unselected_color=colors["bg_card_secondary"],
@@ -93,16 +85,17 @@ class TodoView(ctk.CTkFrame):
             command=self._on_status_change
         )
         self.seg_status.set("All")
-        self.seg_status.pack(side="left", padx=(0, 12))
+        self.seg_status.pack(side="left", padx=(0, 14))
 
         # Category Filter
-        ctk.CTkLabel(tb_inner, text="Category:", font=Theme.font_small(), text_color=colors["text_secondary"]).pack(side="left", padx=(0, 4))
+        ctk.CTkLabel(tb_inner, text="Category:", font=Theme.font_small(), text_color=colors["text_secondary"]).pack(side="left", padx=(0, 6))
         self.opt_category = ctk.CTkOptionMenu(
             tb_inner,
             values=["All", "Study", "Homework", "Exam Prep", "Reading", "Personal", "Project"],
-            font=Theme.font_small(),
-            width=100,
-            height=28,
+            font=Theme.font_body(),
+            width=115,
+            height=36,
+            corner_radius=10,
             fg_color=colors["bg_card_secondary"],
             text_color=colors["text_primary"],
             button_color=colors["bg_card_secondary"],
@@ -110,16 +103,17 @@ class TodoView(ctk.CTkFrame):
             command=self._on_filter_change
         )
         self.opt_category.set("All")
-        self.opt_category.pack(side="left", padx=(0, 12))
+        self.opt_category.pack(side="left", padx=(0, 14))
 
         # Priority Filter
-        ctk.CTkLabel(tb_inner, text="Priority:", font=Theme.font_small(), text_color=colors["text_secondary"]).pack(side="left", padx=(0, 4))
+        ctk.CTkLabel(tb_inner, text="Priority:", font=Theme.font_small(), text_color=colors["text_secondary"]).pack(side="left", padx=(0, 6))
         self.opt_priority = ctk.CTkOptionMenu(
             tb_inner,
             values=["All", "High", "Medium", "Low"],
-            font=Theme.font_small(),
-            width=90,
-            height=28,
+            font=Theme.font_body(),
+            width=100,
+            height=36,
+            corner_radius=10,
             fg_color=colors["bg_card_secondary"],
             text_color=colors["text_primary"],
             button_color=colors["bg_card_secondary"],
@@ -127,38 +121,35 @@ class TodoView(ctk.CTkFrame):
             command=self._on_filter_change
         )
         self.opt_priority.set("All")
-        self.opt_priority.pack(side="left", padx=(0, 12))
+        self.opt_priority.pack(side="left", padx=(0, 14))
 
         # Search Bar
-        self.ent_search = ctk.CTkEntry(
+        self.ent_search = StyledEntry(
             tb_inner,
             placeholder_text="Search tasks...",
-            font=Theme.font_small(),
-            width=170,
-            height=28,
-            fg_color=colors["input_bg"],
-            border_color=colors["input_border"]
+            width=190,
+            height=36
         )
         self.ent_search.pack(side="right")
         self.ent_search.bind("<KeyRelease>", lambda e: self._on_search())
 
-        # Scrollable Task Cards Container
+        # 3. Scrollable Task Cards Container
         self.tasks_scroll = ctk.CTkScrollableFrame(
             self,
             fg_color="transparent",
-            scrollbar_button_color=colors["border_subtle"],
-            scrollbar_button_hover_color=colors["accent_pink"]
+            scrollbar_button_color=(Theme.LIGHT["border_subtle"], Theme.DARK["border_subtle"]),
+            scrollbar_button_hover_color=(Theme.LIGHT["accent_pink"], Theme.DARK["accent_pink"])
         )
         self.tasks_scroll.pack(fill="both", expand=True, padx=24, pady=(0, 10))
 
-        # Footer Status bar
-        self.footer = ctk.CTkFrame(self, fg_color="transparent", height=28)
-        self.footer.pack(fill="x", padx=26, pady=(0, 12))
+        # 4. Footer Status bar
+        self.footer = ctk.CTkFrame(self, fg_color="transparent", height=32)
+        self.footer.pack(fill="x", padx=26, pady=(0, 14))
 
         self.lbl_stats = ctk.CTkLabel(
             self.footer,
             text="",
-            font=Theme.font_small(),
+            font=Theme.font_body(),
             text_color=colors["text_secondary"]
         )
         self.lbl_stats.pack(side="left")
@@ -197,31 +188,15 @@ class TodoView(ctk.CTkFrame):
         )
 
         if not tasks:
-            empty_card = ctk.CTkFrame(
+            empty = EmptyState(
                 self.tasks_scroll,
-                fg_color=colors["bg_card"],
-                corner_radius=14,
-                border_width=1,
-                border_color=colors["border"]
+                title="No tasks found",
+                description="No tasks match your current filter or search criteria.\nCreate a task to get moving forward!",
+                mascot_name="passed",
+                action_text="+ Add a Task",
+                action_command=self._open_new_task_modal
             )
-            empty_card.pack(fill="x", pady=20)
-
-            inner = ctk.CTkFrame(empty_card, fg_color="transparent")
-            inner.pack(padx=20, pady=24)
-
-            ctk.CTkLabel(
-                inner,
-                text="No tasks found matching your filter.",
-                font=Theme.font_subheader(),
-                text_color=colors["text_primary"]
-            ).pack(pady=(0, 4))
-
-            ctk.CTkLabel(
-                inner,
-                text="Click 'New Task' above to add a task to your planner.",
-                font=Theme.font_body(),
-                text_color=colors["text_secondary"]
-            ).pack()
+            empty.pack(fill="x", pady=24)
             return
 
         for task in tasks:
@@ -232,17 +207,18 @@ class TodoView(ctk.CTkFrame):
         task_id = task["id"]
         is_done = bool(task["completed"])
 
-        card = ctk.CTkFrame(
+        card = Card(
             self.tasks_scroll,
             fg_color=colors["bg_card_secondary"] if is_done else colors["bg_card"],
-            corner_radius=12,
+            corner_radius=Theme.RADIUS_MD,
             border_width=1,
-            border_color=colors["border_subtle"]
+            border_color=colors["border_subtle"],
+            hoverable=True
         )
         card.pack(fill="x", pady=4)
 
         card_inner = ctk.CTkFrame(card, fg_color="transparent")
-        card_inner.pack(fill="both", expand=True, padx=14, pady=9)
+        card_inner.pack(fill="both", expand=True, padx=16, pady=12)
 
         # Left side: Checkbox + details
         left_box = ctk.CTkFrame(card_inner, fg_color="transparent")
@@ -252,20 +228,13 @@ class TodoView(ctk.CTkFrame):
         top_line.pack(fill="x", anchor="w")
 
         var_chk = tk.BooleanVar(value=is_done)
-        chk = ctk.CTkCheckBox(
+        chk = StyledCheckBox(
             top_line,
             text="",
             variable=var_chk,
-            width=22,
-            checkbox_width=18,
-            checkbox_height=18,
-            corner_radius=5,
-            fg_color=colors["accent_pink"],
-            hover_color=colors["accent_pink_hover"],
-            border_color=colors["border"],
             command=lambda tid=task_id, v=var_chk: self._toggle_task(tid, v.get())
         )
-        chk.pack(side="left", padx=(0, 10))
+        chk.pack(side="left", padx=(0, 12))
 
         title_color = colors["text_muted"] if is_done else colors["text_primary"]
         lbl_title = ctk.CTkLabel(
@@ -279,7 +248,7 @@ class TodoView(ctk.CTkFrame):
 
         # Badges row
         badges_line = ctk.CTkFrame(left_box, fg_color="transparent")
-        badges_line.pack(fill="x", anchor="w", padx=(32, 0), pady=(3, 0))
+        badges_line.pack(fill="x", anchor="w", padx=(34, 0), pady=(4, 0))
 
         if task.get("subject_name"):
             ctk.CTkLabel(
@@ -288,10 +257,10 @@ class TodoView(ctk.CTkFrame):
                 font=Theme.font_tag(),
                 text_color=colors["text_primary"],
                 fg_color=colors["bg_card_secondary"],
-                corner_radius=5,
-                padx=6,
-                pady=1
-            ).pack(side="left", padx=(0, 6))
+                corner_radius=6,
+                padx=8,
+                pady=2
+            ).pack(side="left", padx=(0, 8))
 
         cat = task.get("category", "Study")
         ctk.CTkLabel(
@@ -300,10 +269,10 @@ class TodoView(ctk.CTkFrame):
             font=Theme.font_tag(),
             text_color=colors["text_secondary"],
             fg_color=colors["bg_card_secondary"],
-            corner_radius=5,
-            padx=6,
-            pady=1
-        ).pack(side="left", padx=(0, 6))
+            corner_radius=6,
+            padx=8,
+            pady=2
+        ).pack(side="left", padx=(0, 8))
 
         prio = task.get("priority", "Medium")
         prio_color = colors["accent_yellow"]
@@ -318,10 +287,10 @@ class TodoView(ctk.CTkFrame):
             font=Theme.font_tag(),
             text_color=colors["text_primary"],
             fg_color=colors["bg_card_secondary"],
-            corner_radius=5,
-            padx=6,
-            pady=1
-        ).pack(side="left", padx=(0, 6))
+            corner_radius=6,
+            padx=8,
+            pady=2
+        ).pack(side="left", padx=(0, 8))
 
         due_d = task.get("due_date")
         if due_d:
@@ -345,9 +314,9 @@ class TodoView(ctk.CTkFrame):
                 font=Theme.font_tag(),
                 text_color=due_fg,
                 fg_color=due_color,
-                corner_radius=5,
-                padx=6,
-                pady=1
+                corner_radius=6,
+                padx=8,
+                pady=2
             ).pack(side="left")
 
         desc = task.get("description", "").strip()
@@ -355,39 +324,35 @@ class TodoView(ctk.CTkFrame):
             ctk.CTkLabel(
                 left_box,
                 text=desc,
-                font=Theme.font_small(),
+                font=Theme.font_body(),
                 text_color=colors["text_secondary"],
                 anchor="w",
-                wraplength=480,
+                wraplength=520,
                 justify="left"
-            ).pack(anchor="w", padx=(32, 0), pady=(3, 0))
+            ).pack(anchor="w", padx=(34, 0), pady=(4, 0))
 
         # Right side: Vector-styled Edit & Delete buttons
         right_box = ctk.CTkFrame(card_inner, fg_color="transparent")
-        right_box.pack(side="right", padx=(10, 0))
+        right_box.pack(side="right", padx=(12, 0))
 
-        ic_edit = icons.get_icon("edit", size=13, color=colors["text_secondary"])
-        btn_edit = ctk.CTkButton(
+        ic_edit = icons.get_icon("edit", size=15, color=colors["text_secondary"])
+        btn_edit = GhostButton(
             right_box,
             text="",
             image=ic_edit,
-            width=28,
-            height=28,
-            fg_color="transparent",
-            hover_color=colors["bg_card_secondary"],
+            width=36,
+            height=36,
             command=lambda t=task: self._open_edit_task_modal(t)
         )
-        btn_edit.pack(side="left", padx=(0, 4))
+        btn_edit.pack(side="left", padx=(0, 6))
 
-        ic_trash = icons.get_icon("trash", size=13, color="#D94161")
-        btn_del = ctk.CTkButton(
+        ic_trash = icons.get_icon("trash", size=15, color=colors["priority_high_fg"])
+        btn_del = GhostButton(
             right_box,
             text="",
             image=ic_trash,
-            width=28,
-            height=28,
-            fg_color="transparent",
-            hover_color=colors["bg_card_secondary"],
+            width=36,
+            height=36,
             command=lambda tid=task_id: self._delete_task(tid)
         )
         btn_del.pack(side="left")

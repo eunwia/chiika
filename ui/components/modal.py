@@ -76,7 +76,7 @@ class BaseModal(ctk.CTkToplevel):
             self,
             fg_color=colors["bg_card"],
             corner_radius=0,
-            height=62,
+            height=72,
             border_width=1,
             border_color=colors["border_subtle"]
         )
@@ -84,7 +84,7 @@ class BaseModal(ctk.CTkToplevel):
         self.footer_frame.pack_propagate(False)
 
         self.footer_inner = ctk.CTkFrame(self.footer_frame, fg_color="transparent")
-        self.footer_inner.pack(fill="both", expand=True, padx=20, pady=12)
+        self.footer_inner.pack(fill="both", expand=True, padx=20, pady=14)
 
         # Error notification label inside footer
         self.lbl_error = ctk.CTkLabel(

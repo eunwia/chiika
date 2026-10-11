@@ -2,6 +2,7 @@
 ui/settings_view.py - Modern Settings & Preferences View for Chiikawa Study Planner
 Allows users to customize visual themes (Cozy Day / Cozy Night), Pomodoro timer durations,
 user profile name, sound alerts, and sample data restoration.
+Refactored with PageHeader, Card, PrimaryButton, SecondaryButton, DangerButton, and StyledEntry.
 """
 
 import tkinter as tk
@@ -10,6 +11,14 @@ from typing import Callable, Any
 from theme import Theme
 import database
 import icons
+from ui.components.widgets import (
+    PageHeader,
+    Card,
+    PrimaryButton,
+    SecondaryButton,
+    DangerButton,
+    StyledEntry
+)
 from ui.components.toast import ToastNotification
 
 
@@ -26,229 +35,212 @@ class SettingsView(ctk.CTkFrame):
     def _build_ui(self):
         colors = Theme.current()
 
-        header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(fill="x", padx=24, pady=(16, 12))
-
-        title_box = ctk.CTkFrame(header, fg_color="transparent")
-        title_box.pack(side="left")
-
-        ctk.CTkLabel(
-            title_box,
-            text="Preferences & Settings",
-            font=Theme.font_title(),
-            text_color=colors["text_primary"]
-        ).pack(anchor="w")
-
-        ctk.CTkLabel(
-            title_box,
-            text="Customize your visual theme, Pomodoro sprint lengths, and app profile.",
-            font=Theme.font_body(),
-            text_color=colors["text_secondary"]
-        ).pack(anchor="w")
+        # 1. Page Header
+        header = PageHeader(
+            self,
+            title="Preferences & Settings",
+            subtitle="Customize your visual theme, Pomodoro sprint lengths, and app profile."
+        )
+        header.pack(fill="x", padx=24, pady=(20, 14))
 
         scroll = ctk.CTkScrollableFrame(
             self,
             fg_color="transparent",
-            scrollbar_button_color=colors["border_subtle"],
-            scrollbar_button_hover_color=colors["accent_pink"]
+            scrollbar_button_color=(Theme.LIGHT["border_subtle"], Theme.DARK["border_subtle"]),
+            scrollbar_button_hover_color=(Theme.LIGHT["accent_pink"], Theme.DARK["accent_pink"])
         )
         scroll.pack(fill="both", expand=True, padx=24, pady=(0, 16))
 
-        # 1. Visual Theme Settings Card
-        theme_card = ctk.CTkFrame(
+        # 2. Visual Theme Settings Card
+        theme_card = Card(
             scroll,
-            fg_color=colors["bg_card"],
-            corner_radius=16,
-            border_width=1,
-            border_color=colors["border"]
+            corner_radius=Theme.RADIUS_LG,
+            hoverable=False
         )
-        theme_card.pack(fill="x", pady=(0, 16))
+        theme_card.pack(fill="x", pady=(0, 18))
 
         th_inner = ctk.CTkFrame(theme_card, fg_color="transparent")
-        th_inner.pack(fill="both", expand=True, padx=20, pady=16)
+        th_inner.pack(fill="both", expand=True, padx=Theme.CARD_PAD_X, pady=Theme.CARD_PAD_Y)
 
-        ctk.CTkLabel(th_inner, text="Visual Theme Mode", font=Theme.font_header(), text_color=colors["text_primary"]).pack(anchor="w")
+        ctk.CTkLabel(
+            th_inner,
+            text="Visual Theme Mode",
+            font=Theme.font_card_title(),
+            text_color=colors["text_primary"]
+        ).pack(anchor="w")
+
         ctk.CTkLabel(
             th_inner,
             text="Choose between warm alabaster Cozy Day and deep twilight Cozy Night.",
-            font=Theme.font_small(),
+            font=Theme.font_body(),
             text_color=colors["text_secondary"]
-        ).pack(anchor="w", pady=(2, 10))
+        ).pack(anchor="w", pady=(2, 12))
 
         current_theme = database.get_setting("theme_mode", "light")
         self.seg_theme = ctk.CTkSegmentedButton(
             th_inner,
             values=["Cozy Day (Light)", "Cozy Night (Dark)"],
             font=Theme.font_body(),
+            height=40,
+            corner_radius=12,
             selected_color=colors["accent_pink"],
             selected_hover_color=colors["accent_pink_hover"],
             unselected_color=colors["bg_card_secondary"],
+            unselected_hover_color=colors["bg_sidebar_hover"],
             text_color=colors["text_primary"],
-            command=self._handle_theme_change,
-            height=36
+            command=self._handle_theme_change
         )
         init_sel = "Cozy Day (Light)" if current_theme == "light" else "Cozy Night (Dark)"
         self.seg_theme.set(init_sel)
         self.seg_theme.pack(anchor="w")
 
-        # 2. Pomodoro Timer Customization Card
-        pomo_card = ctk.CTkFrame(
+        # 3. Pomodoro Timer Customization Card
+        pomo_card = Card(
             scroll,
-            fg_color=colors["bg_card"],
-            corner_radius=16,
-            border_width=1,
-            border_color=colors["border"]
+            corner_radius=Theme.RADIUS_LG,
+            hoverable=False
         )
-        pomo_card.pack(fill="x", pady=(0, 16))
+        pomo_card.pack(fill="x", pady=(0, 18))
 
         p_inner = ctk.CTkFrame(pomo_card, fg_color="transparent")
-        p_inner.pack(fill="both", expand=True, padx=20, pady=16)
+        p_inner.pack(fill="both", expand=True, padx=Theme.CARD_PAD_X, pady=Theme.CARD_PAD_Y)
 
-        ctk.CTkLabel(p_inner, text="Pomodoro Sprint Durations (Minutes)", font=Theme.font_header(), text_color=colors["text_primary"]).pack(anchor="w")
+        ctk.CTkLabel(
+            p_inner,
+            text="Pomodoro Sprint Durations (Minutes)",
+            font=Theme.font_card_title(),
+            text_color=colors["text_primary"]
+        ).pack(anchor="w")
+
         ctk.CTkLabel(
             p_inner,
             text="Configure your preferred focus intervals and short / long breaks.",
-            font=Theme.font_small(),
+            font=Theme.font_body(),
             text_color=colors["text_secondary"]
-        ).pack(anchor="w", pady=(2, 12))
+        ).pack(anchor="w", pady=(2, 14))
 
         inputs_grid = ctk.CTkFrame(p_inner, fg_color="transparent")
-        inputs_grid.pack(fill="x", pady=(0, 12))
+        inputs_grid.pack(fill="x", pady=(0, 16))
         inputs_grid.grid_columnconfigure((0, 1, 2), weight=1)
 
         f_box = ctk.CTkFrame(inputs_grid, fg_color="transparent")
         f_box.grid(row=0, column=0, sticky="ew", padx=(0, 10))
-        ctk.CTkLabel(f_box, text="Focus Session (mins)", font=Theme.font_small(), text_color=colors["text_secondary"]).pack(anchor="w")
-        self.ent_focus = ctk.CTkEntry(f_box, font=Theme.font_body(), fg_color=colors["input_bg"], border_color=colors["input_border"], height=34)
+        ctk.CTkLabel(f_box, text="Focus Session (mins)", font=Theme.font_body(), text_color=colors["text_secondary"]).pack(anchor="w")
+        self.ent_focus = StyledEntry(f_box, height=Theme.INPUT_HEIGHT)
         self.ent_focus.insert(0, database.get_setting("pomodoro_focus", "25"))
-        self.ent_focus.pack(fill="x", pady=(3, 0))
+        self.ent_focus.pack(fill="x", pady=(4, 0))
 
         s_box = ctk.CTkFrame(inputs_grid, fg_color="transparent")
-        s_box.grid(row=0, column=1, sticky="ew", padx=5)
-        ctk.CTkLabel(s_box, text="Short Break (mins)", font=Theme.font_small(), text_color=colors["text_secondary"]).pack(anchor="w")
-        self.ent_short = ctk.CTkEntry(s_box, font=Theme.font_body(), fg_color=colors["input_bg"], border_color=colors["input_border"], height=34)
+        s_box.grid(row=0, column=1, sticky="ew", padx=6)
+        ctk.CTkLabel(s_box, text="Short Break (mins)", font=Theme.font_body(), text_color=colors["text_secondary"]).pack(anchor="w")
+        self.ent_short = StyledEntry(s_box, height=Theme.INPUT_HEIGHT)
         self.ent_short.insert(0, database.get_setting("pomodoro_short_break", "5"))
-        self.ent_short.pack(fill="x", pady=(3, 0))
+        self.ent_short.pack(fill="x", pady=(4, 0))
 
         l_box = ctk.CTkFrame(inputs_grid, fg_color="transparent")
         l_box.grid(row=0, column=2, sticky="ew", padx=(10, 0))
-        ctk.CTkLabel(l_box, text="Long Break (mins)", font=Theme.font_small(), text_color=colors["text_secondary"]).pack(anchor="w")
-        self.ent_long = ctk.CTkEntry(l_box, font=Theme.font_body(), fg_color=colors["input_bg"], border_color=colors["input_border"], height=34)
+        ctk.CTkLabel(l_box, text="Long Break (mins)", font=Theme.font_body(), text_color=colors["text_secondary"]).pack(anchor="w")
+        self.ent_long = StyledEntry(l_box, height=Theme.INPUT_HEIGHT)
         self.ent_long.insert(0, database.get_setting("pomodoro_long_break", "15"))
-        self.ent_long.pack(fill="x", pady=(3, 0))
+        self.ent_long.pack(fill="x", pady=(4, 0))
 
-        btn_save_timer = ctk.CTkButton(
+        btn_save_timer = PrimaryButton(
             p_inner,
             text="Save Timer Durations",
-            font=Theme.font_body_bold(),
-            fg_color=colors["accent_pink"],
-            hover_color=colors["accent_pink_hover"],
-            text_color="#FFFFFF",
-            corner_radius=10,
-            height=34,
+            width=180,
+            height=Theme.BTN_HEIGHT,
             command=self._save_timer_settings
         )
         btn_save_timer.pack(anchor="w")
 
-        # 3. User Profile Name Card
-        prof_card = ctk.CTkFrame(
+        # 4. User Profile Name Card
+        prof_card = Card(
             scroll,
-            fg_color=colors["bg_card"],
-            corner_radius=16,
-            border_width=1,
-            border_color=colors["border"]
+            corner_radius=Theme.RADIUS_LG,
+            hoverable=False
         )
-        prof_card.pack(fill="x", pady=(0, 16))
+        prof_card.pack(fill="x", pady=(0, 18))
 
         prof_inner = ctk.CTkFrame(prof_card, fg_color="transparent")
-        prof_inner.pack(fill="both", expand=True, padx=20, pady=16)
+        prof_inner.pack(fill="both", expand=True, padx=Theme.CARD_PAD_X, pady=Theme.CARD_PAD_Y)
 
-        ctk.CTkLabel(prof_inner, text="User Display Name", font=Theme.font_header(), text_color=colors["text_primary"]).pack(anchor="w")
+        ctk.CTkLabel(
+            prof_inner,
+            text="User Display Name",
+            font=Theme.font_card_title(),
+            text_color=colors["text_primary"]
+        ).pack(anchor="w")
+
         ctk.CTkLabel(
             prof_inner,
             text="Name used for personalized greetings on your dashboard.",
-            font=Theme.font_small(),
+            font=Theme.font_body(),
             text_color=colors["text_secondary"]
-        ).pack(anchor="w", pady=(2, 8))
+        ).pack(anchor="w", pady=(2, 12))
 
         name_row = ctk.CTkFrame(prof_inner, fg_color="transparent")
         name_row.pack(fill="x")
 
-        self.ent_name = ctk.CTkEntry(
+        self.ent_name = StyledEntry(
             name_row,
             placeholder_text="Your name...",
-            font=Theme.font_body(),
-            fg_color=colors["input_bg"],
-            border_color=colors["input_border"],
-            height=34,
-            width=220
+            height=Theme.INPUT_HEIGHT,
+            width=240
         )
         self.ent_name.insert(0, database.get_setting("user_name", "Chiikawa Friend"))
-        self.ent_name.pack(side="left", padx=(0, 10))
+        self.ent_name.pack(side="left", padx=(0, 12))
 
-        btn_save_name = ctk.CTkButton(
+        btn_save_name = PrimaryButton(
             name_row,
             text="Update Name",
-            font=Theme.font_body(),
-            fg_color=colors["accent_pink"],
-            hover_color=colors["accent_pink_hover"],
-            text_color="#FFFFFF",
-            corner_radius=10,
-            height=34,
+            width=130,
+            height=Theme.BTN_HEIGHT,
             command=self._save_user_name
         )
         btn_save_name.pack(side="left")
 
-        # 4. Data Tools & Reset Card
-        data_card = ctk.CTkFrame(
+        # 5. Data Tools & Reset Card
+        data_card = Card(
             scroll,
-            fg_color=colors["bg_card"],
-            corner_radius=16,
-            border_width=1,
-            border_color=colors["border"]
+            corner_radius=Theme.RADIUS_LG,
+            hoverable=False
         )
-        data_card.pack(fill="x", pady=(0, 16))
+        data_card.pack(fill="x", pady=(0, 18))
 
         d_inner = ctk.CTkFrame(data_card, fg_color="transparent")
-        d_inner.pack(fill="both", expand=True, padx=20, pady=16)
+        d_inner.pack(fill="both", expand=True, padx=Theme.CARD_PAD_X, pady=Theme.CARD_PAD_Y)
 
-        ctk.CTkLabel(d_inner, text="Database Management & Sample Data", font=Theme.font_header(), text_color=colors["text_primary"]).pack(anchor="w")
+        ctk.CTkLabel(
+            d_inner,
+            text="Database Management & Sample Data",
+            font=Theme.font_card_title(),
+            text_color=colors["text_primary"]
+        ).pack(anchor="w")
+
         ctk.CTkLabel(
             d_inner,
             text="Reload default sample subjects, tasks, and notes, or reset local database.",
-            font=Theme.font_small(),
+            font=Theme.font_body(),
             text_color=colors["text_secondary"]
-        ).pack(anchor="w", pady=(2, 10))
+        ).pack(anchor="w", pady=(2, 14))
 
         btn_row = ctk.CTkFrame(d_inner, fg_color="transparent")
         btn_row.pack(fill="x")
 
-        btn_reload_sample = ctk.CTkButton(
+        btn_reload_sample = SecondaryButton(
             btn_row,
             text="Reload Sample Data",
-            font=Theme.font_body(),
-            fg_color=colors["bg_card_secondary"],
-            hover_color=colors["bg_sidebar_hover"],
-            text_color=colors["text_primary"],
-            border_width=1,
-            border_color=colors["border"],
-            corner_radius=10,
-            height=36,
+            height=Theme.BTN_HEIGHT,
+            width=170,
             command=self._reload_sample_data
         )
-        btn_reload_sample.pack(side="left", padx=(0, 10))
+        btn_reload_sample.pack(side="left", padx=(0, 12))
 
-        btn_reset_all = ctk.CTkButton(
+        btn_reset_all = DangerButton(
             btn_row,
             text="Reset to Defaults",
-            font=Theme.font_body(),
-            fg_color="transparent",
-            hover_color="#FCE7EB",
-            text_color="#D94161",
-            border_width=1,
-            border_color="#D94161",
-            corner_radius=10,
-            height=36,
+            height=Theme.BTN_HEIGHT,
+            width=150,
             command=self._reset_all_data
         )
         btn_reset_all.pack(side="left")

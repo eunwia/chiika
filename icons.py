@@ -202,6 +202,22 @@ def get_icon(name: str, size: int = 18, color: str = "#4A3E4D") -> ctk.CTkImage:
         line(10, 6, 10, 10)
         line(10, 10, 13.5, 10)
 
+    elif name == "sun":
+        circle(10, 10, 4)
+        for angle_deg in [0, 45, 90, 135, 180, 225, 270, 315]:
+            import math
+            rad = math.radians(angle_deg)
+            x1 = 10 + 6 * math.cos(rad)
+            y1 = 10 + 6 * math.sin(rad)
+            x2 = 10 + 8 * math.cos(rad)
+            y2 = 10 + 8 * math.sin(rad)
+            line(x1, y1, x2, y2, w=stroke*1.0)
+
+    elif name == "moon":
+        circle(10, 10, 6.5)
+        # cut out inner arc for crescent effect
+        draw.ellipse([(6.5) * scale, (3.5) * scale, (17.5) * scale, (14.5) * scale], fill=(0, 0, 0, 0))
+
     else:
         circle(10, 10, 3, fill=True)
 

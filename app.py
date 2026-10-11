@@ -70,8 +70,8 @@ class ChiikawaApp(ctk.CTk):
 
         # Window Configuration
         self.title("Chiikawa Study Planner")
-        self.geometry("1180x760")
-        self.minsize(980, 620)
+        self.geometry("1220x780")
+        self.minsize(1020, 660)
 
         # Set Windows taskbar / titlebar icon
         try:
@@ -90,7 +90,12 @@ class ChiikawaApp(ctk.CTk):
         self.grid_columnconfigure(1, weight=1)  # Main view expands
 
         # Sidebar
-        self.sidebar = Sidebar(self, on_navigate=self.navigate_to, active_tab="dashboard")
+        self.sidebar = Sidebar(
+            self,
+            on_navigate=self.navigate_to,
+            on_toggle_theme=self._change_theme,
+            active_tab="dashboard"
+        )
         self.sidebar.grid(row=0, column=0, sticky="nsew")
 
         # Main View Container
@@ -133,16 +138,29 @@ class ChiikawaApp(ctk.CTk):
         self.views = LazyViewDict(factories)
 
     def navigate_to(self, view_key: str):
-        """Switch current visible view with fast on-demand lazy initialization."""
+        """Switch current visible view with smooth transition and on-demand lazy initialization."""
         if view_key not in self.views:
             return
 
+        old_view = None
         if self.current_view_key in self.views and super(LazyViewDict, self.views).__contains__(self.current_view_key):
-            self.views[self.current_view_key].grid_remove()
+            old_view = self.views[self.current_view_key]
 
         self.current_view_key = view_key
         view = self.views[view_key]
-        view.grid()
+
+        if old_view and old_view != view:
+            old_view.grid_remove()
+
+        view.grid(row=0, column=0, sticky="nsew")
+
+        # Smooth settle micro-transition without flicker
+        try:
+            view.grid_configure(pady=(6, 0))
+            self.after(25, lambda: view.grid_configure(pady=(2, 0)))
+            self.after(50, lambda: view.grid_configure(pady=(0, 0)))
+        except Exception:
+            pass
 
         if hasattr(view, "refresh"):
             try:
@@ -157,6 +175,7 @@ class ChiikawaApp(ctk.CTk):
         """Update global theme and re-render."""
         Theme.set_mode(mode)
         ctk.set_appearance_mode(mode)
+        database.set_setting("theme_mode", mode)
         colors = Theme.current()
         self.configure(fg_color=colors["bg_app"])
 

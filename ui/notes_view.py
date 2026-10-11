@@ -1,7 +1,7 @@
 """
 ui/notes_view.py - Modern Notes & Quick Capture View for Chiikawa Study Planner
-Master-detail notes manager with dedicated Create Note modal, inline editor,
-guaranteed visible Save/Cancel buttons, search, and pin controls.
+Master-detail notes manager with quick capture bar, rich inline editor, search, and pin controls.
+Refactored with PageHeader, Card, PrimaryButton, SecondaryButton, GhostButton, StyledEntry, and StyledCheckBox.
 """
 
 import tkinter as tk
@@ -11,6 +11,16 @@ from typing import Optional, Any, List
 from theme import Theme
 import database
 import icons
+from ui.components.widgets import (
+    PageHeader,
+    Card,
+    PrimaryButton,
+    SecondaryButton,
+    GhostButton,
+    StyledEntry,
+    StyledCheckBox,
+    EmptyState
+)
 from ui.components.modal import NoteModal
 from ui.components.toast import ToastNotification
 
@@ -29,109 +39,82 @@ class NotesView(ctk.CTkFrame):
     def _build_ui(self):
         colors = Theme.current()
 
-        # Header Frame
-        header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(fill="x", padx=24, pady=(16, 12))
+        # 1. Page Header with Action Button
+        header = PageHeader(
+            self,
+            title="Study Notes",
+            subtitle="Capture lecture summaries, revision guides, ideas, and formulas."
+        )
+        header.pack(fill="x", padx=24, pady=(20, 14))
 
-        title_box = ctk.CTkFrame(header, fg_color="transparent")
-        title_box.pack(side="left")
-
-        ctk.CTkLabel(
-            title_box,
-            text="Study Notes",
-            font=Theme.font_title(),
-            text_color=colors["text_primary"]
-        ).pack(anchor="w")
-
-        ctk.CTkLabel(
-            title_box,
-            text="Capture lecture summaries, revision guides, ideas, and formulas.",
-            font=Theme.font_body(),
-            text_color=colors["text_secondary"]
-        ).pack(anchor="w")
-
-        ic_plus = icons.get_icon("plus", size=14, color="#FFFFFF")
-        btn_new_note = ctk.CTkButton(
-            header,
+        ic_plus = icons.get_icon("plus", size=16, color="#FFFFFF")
+        btn_new_note = PrimaryButton(
+            header.actions_container,
             text=" Create Note",
             image=ic_plus,
-            compound="left",
-            font=Theme.font_body_bold(),
-            fg_color=colors["accent_pink"],
-            hover_color=colors["accent_pink_hover"],
-            text_color="#FFFFFF",
-            corner_radius=10,
-            height=36,
-            command=self._open_create_note_modal
+            command=self._open_create_note_modal,
+            width=140,
+            height=Theme.BTN_HEIGHT
         )
         btn_new_note.pack(side="right")
 
-        # Quick Capture Bar
-        cap_bar = ctk.CTkFrame(
+        # 2. Quick Capture Bar Card
+        cap_bar = Card(
             self,
-            fg_color=colors["bg_card"],
-            corner_radius=12,
-            border_width=1,
-            border_color=colors["border"]
+            corner_radius=Theme.RADIUS_MD,
+            hoverable=False
         )
-        cap_bar.pack(fill="x", padx=24, pady=(0, 12))
+        cap_bar.pack(fill="x", padx=24, pady=(0, 14))
 
         cap_inner = ctk.CTkFrame(cap_bar, fg_color="transparent")
-        cap_inner.pack(fill="x", padx=14, pady=8)
+        cap_inner.pack(fill="x", padx=16, pady=10)
 
-        ctk.CTkLabel(cap_inner, text="Quick Capture:", font=Theme.font_subheader(), text_color=colors["accent_pink"]).pack(side="left", padx=(0, 8))
+        ctk.CTkLabel(
+            cap_inner,
+            text="Quick Capture:",
+            font=Theme.font_body_bold(),
+            text_color=colors["accent_pink"]
+        ).pack(side="left", padx=(0, 10))
 
-        self.ent_quick = ctk.CTkEntry(
+        self.ent_quick = StyledEntry(
             cap_inner,
             placeholder_text="Jot down a quick thought, formula, or reminder (Press Enter to save)...",
-            font=Theme.font_body(),
-            fg_color=colors["input_bg"],
-            border_color=colors["input_border"],
-            height=32
+            height=38
         )
-        self.ent_quick.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        self.ent_quick.pack(side="left", fill="x", expand=True, padx=(0, 10))
         self.ent_quick.bind("<Return>", lambda e: self._handle_quick_capture())
 
-        btn_quick_save = ctk.CTkButton(
+        btn_quick_save = PrimaryButton(
             cap_inner,
             text="Save Note",
-            font=Theme.font_small(),
-            width=85,
-            height=32,
-            fg_color=colors["accent_pink"],
-            hover_color=colors["accent_pink_hover"],
-            text_color="#FFFFFF",
+            width=100,
+            height=38,
             command=self._handle_quick_capture
         )
         btn_quick_save.pack(side="left")
 
-        # Master-Detail Layout Area
+        # 3. Master-Detail Layout Area
         main_area = ctk.CTkFrame(self, fg_color="transparent")
         main_area.pack(fill="both", expand=True, padx=24, pady=(0, 16))
         main_area.grid_columnconfigure(0, weight=4)
         main_area.grid_columnconfigure(1, weight=6)
         main_area.grid_rowconfigure(0, weight=1)
 
-        # Left Column: Note List
-        left_card = ctk.CTkFrame(
+        # Left Column: Note List Card
+        left_card = Card(
             main_area,
-            fg_color=colors["bg_card"],
-            corner_radius=16,
-            border_width=1,
-            border_color=colors["border"]
+            corner_radius=Theme.RADIUS_LG,
+            hoverable=False
         )
-        left_card.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        left_card.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
 
         search_box = ctk.CTkFrame(left_card, fg_color="transparent")
         search_box.pack(fill="x", padx=14, pady=(14, 8))
 
-        self.ent_search = ctk.CTkEntry(
+        self.ent_search = StyledEntry(
             search_box,
             placeholder_text="Search notes...",
-            font=Theme.font_small(),
-            fg_color=colors["input_bg"],
-            border_color=colors["input_border"],
-            height=30
+            height=36
         )
         self.ent_search.pack(fill="x")
         self.ent_search.bind("<KeyRelease>", lambda e: self._on_search())
@@ -139,20 +122,18 @@ class NotesView(ctk.CTkFrame):
         self.notes_scroll = ctk.CTkScrollableFrame(
             left_card,
             fg_color="transparent",
-            scrollbar_button_color=colors["border_subtle"],
-            scrollbar_button_hover_color=colors["accent_pink"]
+            scrollbar_button_color=(Theme.LIGHT["border_subtle"], Theme.DARK["border_subtle"]),
+            scrollbar_button_hover_color=(Theme.LIGHT["accent_pink"], Theme.DARK["accent_pink"])
         )
         self.notes_scroll.pack(fill="both", expand=True, padx=8, pady=(0, 10))
 
         # Right Column: Editor & Viewer Card
-        self.editor_card = ctk.CTkFrame(
+        self.editor_card = Card(
             main_area,
-            fg_color=colors["bg_card"],
-            corner_radius=16,
-            border_width=1,
-            border_color=colors["border"]
+            corner_radius=Theme.RADIUS_LG,
+            hoverable=False
         )
-        self.editor_card.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
+        self.editor_card.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
 
         self._build_editor()
 
@@ -163,89 +144,89 @@ class NotesView(ctk.CTkFrame):
 
         # Header with Title, Primary Save Button, and Delete
         top_row = ctk.CTkFrame(self.editor_inner, fg_color="transparent")
-        top_row.pack(fill="x", pady=(0, 10))
+        top_row.pack(fill="x", pady=(0, 12))
 
-        self.ent_title = ctk.CTkEntry(
+        self.ent_title = StyledEntry(
             top_row,
             placeholder_text="Note Title...",
-            font=Theme.font_header(),
-            fg_color=colors["input_bg"],
-            border_color=colors["input_border"],
-            height=36
+            height=Theme.INPUT_HEIGHT
         )
-        self.ent_title.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        self.ent_title.configure(font=Theme.font_card_title())
+        self.ent_title.pack(side="left", fill="x", expand=True, padx=(0, 10))
 
-        # Prominent Save Note Button at the top
-        self.btn_save_top = ctk.CTkButton(
+        self.btn_save_top = PrimaryButton(
             top_row,
             text="Save Note",
-            font=Theme.font_body_bold(),
-            fg_color=colors["accent_pink"],
-            hover_color=colors["accent_pink_hover"],
-            text_color="#FFFFFF",
-            corner_radius=8,
-            height=34,
-            width=100,
+            height=Theme.BTN_HEIGHT,
+            width=110,
             command=self._save_current_note
         )
-        self.btn_save_top.pack(side="left", padx=(0, 6))
+        self.btn_save_top.pack(side="left", padx=(0, 8))
 
-        ic_trash = icons.get_icon("trash", size=13, color="#D94161")
-        self.btn_del = ctk.CTkButton(
+        ic_trash = icons.get_icon("trash", size=15, color=colors["priority_high_fg"])
+        self.btn_del = GhostButton(
             top_row,
             text="",
             image=ic_trash,
-            width=32,
-            height=34,
-            fg_color="transparent",
-            hover_color=colors["bg_card_secondary"],
+            width=36,
+            height=Theme.BTN_HEIGHT,
             command=self._delete_current_note
         )
         self.btn_del.pack(side="right")
 
         # Metadata Row (Subject, Category, Pin)
         meta_row = ctk.CTkFrame(self.editor_inner, fg_color="transparent")
-        meta_row.pack(fill="x", pady=(0, 10))
+        meta_row.pack(fill="x", pady=(0, 12))
 
-        ctk.CTkLabel(meta_row, text="Course:", font=Theme.font_small(), text_color=colors["text_secondary"]).pack(side="left", padx=(0, 4))
+        ctk.CTkLabel(
+            meta_row,
+            text="Course:",
+            font=Theme.font_body(),
+            text_color=colors["text_secondary"]
+        ).pack(side="left", padx=(0, 6))
+
         self.subjects = database.get_all_subjects()
         s_names = ["General (No Subject)"] + [s["name"] for s in self.subjects]
         self.opt_subject = ctk.CTkOptionMenu(
             meta_row,
             values=s_names,
-            font=Theme.font_small(),
-            width=150,
-            height=28,
+            font=Theme.font_body(),
+            width=165,
+            height=36,
+            corner_radius=10,
             fg_color=colors["bg_card_secondary"],
             text_color=colors["text_primary"],
             button_color=colors["bg_card_secondary"],
             button_hover_color=colors["bg_sidebar_hover"]
         )
-        self.opt_subject.pack(side="left", padx=(0, 12))
+        self.opt_subject.pack(side="left", padx=(0, 14))
 
-        ctk.CTkLabel(meta_row, text="Category:", font=Theme.font_small(), text_color=colors["text_secondary"]).pack(side="left", padx=(0, 4))
+        ctk.CTkLabel(
+            meta_row,
+            text="Category:",
+            font=Theme.font_body(),
+            text_color=colors["text_secondary"]
+        ).pack(side="left", padx=(0, 6))
+
         self.opt_category = ctk.CTkOptionMenu(
             meta_row,
             values=["General", "Lecture", "Summary", "Inspiration", "Draft", "Quick Capture"],
-            font=Theme.font_small(),
-            width=120,
-            height=28,
+            font=Theme.font_body(),
+            width=135,
+            height=36,
+            corner_radius=10,
             fg_color=colors["bg_card_secondary"],
             text_color=colors["text_primary"],
             button_color=colors["bg_card_secondary"],
             button_hover_color=colors["bg_sidebar_hover"]
         )
-        self.opt_category.pack(side="left", padx=(0, 12))
+        self.opt_category.pack(side="left", padx=(0, 14))
 
         self.var_pin = tk.BooleanVar(value=False)
-        self.chk_pin = ctk.CTkCheckBox(
+        self.chk_pin = StyledCheckBox(
             meta_row,
             text="Pin Note",
-            variable=self.var_pin,
-            font=Theme.font_small(),
-            text_color=colors["text_primary"],
-            fg_color=colors["accent_pink"],
-            border_color=colors["border"]
+            variable=self.var_pin
         )
         self.chk_pin.pack(side="left")
 
@@ -255,11 +236,12 @@ class NotesView(ctk.CTkFrame):
             font=Theme.font_body(),
             fg_color=colors["input_bg"],
             border_color=colors["input_border"],
-            border_width=1
+            border_width=1,
+            corner_radius=10
         )
-        self.txt_content.pack(fill="both", expand=True, pady=(0, 10))
+        self.txt_content.pack(fill="both", expand=True, pady=(0, 12))
 
-        # Bottom Status Bar with duplicate Save Note button
+        # Bottom Status Bar
         ftr = ctk.CTkFrame(self.editor_inner, fg_color="transparent")
         ftr.pack(fill="x")
 
@@ -271,15 +253,11 @@ class NotesView(ctk.CTkFrame):
         )
         self.lbl_updated.pack(side="left")
 
-        btn_save_bottom = ctk.CTkButton(
+        btn_save_bottom = PrimaryButton(
             ftr,
             text="Save Changes",
-            font=Theme.font_body_bold(),
-            fg_color=colors["accent_pink"],
-            hover_color=colors["accent_pink_hover"],
-            text_color="#FFFFFF",
-            corner_radius=8,
-            height=32,
+            height=36,
+            width=130,
             command=self._save_current_note
         )
         btn_save_bottom.pack(side="right")
@@ -299,9 +277,9 @@ class NotesView(ctk.CTkFrame):
             ctk.CTkLabel(
                 self.notes_scroll,
                 text="No notes found.",
-                font=Theme.font_small(),
+                font=Theme.font_body(),
                 text_color=colors["text_secondary"]
-            ).pack(pady=20)
+            ).pack(pady=24)
             return
 
         if not self.selected_note_id or not any(n["id"] == self.selected_note_id for n in notes):
@@ -319,24 +297,25 @@ class NotesView(ctk.CTkFrame):
         nid = note["id"]
         is_sel = (nid == self.selected_note_id)
 
-        item = ctk.CTkFrame(
+        item = Card(
             self.notes_scroll,
             fg_color=colors["bg_sidebar_active"] if is_sel else colors["bg_card"],
-            corner_radius=10,
+            corner_radius=Theme.RADIUS_MD,
             border_width=1,
-            border_color=colors["accent_pink"] if is_sel else colors["border_subtle"]
+            border_color=colors["accent_pink"] if is_sel else colors["border_subtle"],
+            hoverable=True
         )
         item.pack(fill="x", pady=3)
 
         inner = ctk.CTkFrame(item, fg_color="transparent")
-        inner.pack(fill="both", expand=True, padx=10, pady=8)
+        inner.pack(fill="both", expand=True, padx=12, pady=10)
 
         top_line = ctk.CTkFrame(inner, fg_color="transparent")
         top_line.pack(fill="x")
 
         if note.get("pinned"):
-            ic_pin = icons.get_icon("pin", size=11, color=colors["accent_pink"])
-            ctk.CTkLabel(top_line, image=ic_pin, text="").pack(side="left", padx=(0, 4))
+            ic_pin = icons.get_icon("pin", size=13, color=colors["accent_pink"])
+            ctk.CTkLabel(top_line, image=ic_pin, text="").pack(side="left", padx=(0, 6))
 
         ctk.CTkLabel(
             top_line,
@@ -350,29 +329,37 @@ class NotesView(ctk.CTkFrame):
         if snippet:
             ctk.CTkLabel(
                 inner,
-                text=snippet + "...",
+                text=snippet + ("..." if len(note.get("content", "")) > 38 else ""),
                 font=Theme.font_small(),
                 text_color=colors["text_secondary"],
                 anchor="w"
-            ).pack(fill="x", pady=(2, 0))
+            ).pack(fill="x", pady=(2, 4))
 
-        badg_line = ctk.CTkFrame(inner, fg_color="transparent")
-        badg_line.pack(fill="x", pady=(4, 0))
+        meta_line = ctk.CTkFrame(inner, fg_color="transparent")
+        meta_line.pack(fill="x")
 
-        sub_n = note.get("subject_name") or "General"
         ctk.CTkLabel(
-            badg_line,
-            text=sub_n,
+            meta_line,
+            text=note.get("category", "General"),
             font=Theme.font_tag(),
             text_color=colors["text_secondary"],
             fg_color=colors["bg_card_secondary"],
-            corner_radius=4,
-            padx=5,
+            corner_radius=5,
+            padx=6,
             pady=1
         ).pack(side="left")
 
-        for w in [item, inner, top_line]:
-            w.bind("<Button-1>", lambda e, id_val=nid: self._select_note(id_val))
+        date_short = note.get("updated_at", "")[:10]
+        ctk.CTkLabel(
+            meta_line,
+            text=date_short,
+            font=Theme.font_small(),
+            text_color=colors["text_muted"]
+        ).pack(side="right")
+
+        # Click to select
+        for w in [item, inner, top_line, meta_line]:
+            w.bind("<Button-1>", lambda e, n=nid: self._select_note(n))
 
     def _select_note(self, note_id: int):
         self.selected_note_id = note_id
@@ -385,44 +372,51 @@ class NotesView(ctk.CTkFrame):
         self.txt_content.delete("1.0", "end")
         self.txt_content.insert("1.0", note.get("content", ""))
 
-        self.var_pin.set(bool(note.get("pinned")))
+        self.var_pin.set(bool(note.get("pinned", 0)))
+        cat = note.get("category", "General")
+        self.opt_category.set(cat)
 
-        sub_name = note.get("subject_name") or "General (No Subject)"
-        s_names = ["General (No Subject)"] + [s["name"] for s in self.subjects]
-        if sub_name in s_names:
-            self.opt_subject.set(sub_name)
-        else:
-            self.opt_subject.set("General (No Subject)")
+        sid = note.get("subject_id")
+        sub_name = "General (No Subject)"
+        if sid:
+            for s in self.subjects:
+                if s["id"] == sid:
+                    sub_name = s["name"]
+                    break
+        self.opt_subject.set(sub_name)
 
-        self.opt_category.set(note.get("category", "General"))
-        updated_at = note.get("updated_at", "")[:16].replace("T", " ")
-        self.lbl_updated.configure(text=f"Updated: {updated_at}")
+        up_str = note.get("updated_at", "")
+        self.lbl_updated.configure(text=f"Last modified: {up_str}")
 
     def _save_current_note(self):
         if not self.selected_note_id:
             return
 
-        title = self.ent_title.get().strip() or "Untitled Note"
-        content = self.txt_content.get("1.0", "end-1c")
-        pinned = 1 if self.var_pin.get() else 0
-        cat = self.opt_category.get()
+        title = self.ent_title.get().strip()
+        if not title:
+            ToastNotification.show(self.winfo_toplevel(), "Note title cannot be empty.", color_theme="pink")
+            return
 
-        sel_name = self.opt_subject.get()
-        sid = None
+        content = self.txt_content.get("1.0", "end-1c")
+        category = self.opt_category.get()
+        pinned = int(self.var_pin.get())
+
+        sel_sub_name = self.opt_subject.get()
+        subject_id = None
         for s in self.subjects:
-            if s["name"] == sel_name:
-                sid = s["id"]
+            if s["name"] == sel_sub_name:
+                subject_id = s["id"]
                 break
 
         database.update_note(
             note_id=self.selected_note_id,
             title=title,
             content=content,
-            subject_id=sid,
-            category=cat,
+            subject_id=subject_id,
+            category=category,
             pinned=pinned
         )
-        ToastNotification.show(self.winfo_toplevel(), "Note saved.", color_theme="pink")
+        ToastNotification.show(self.winfo_toplevel(), "Note saved successfully.", color_theme="pink")
         self.refresh()
 
     def _delete_current_note(self):
@@ -433,31 +427,31 @@ class NotesView(ctk.CTkFrame):
         ToastNotification.show(self.winfo_toplevel(), "Note deleted.", color_theme="blue")
         self.refresh()
 
+    def _handle_quick_capture(self):
+        text = self.ent_quick.get().strip()
+        if not text:
+            return
+        today_str = date.today().strftime("%b %d, %Y")
+        database.add_note(
+            title=f"Quick Capture ({today_str})",
+            content=text,
+            category="Quick Capture"
+        )
+        self.ent_quick.delete(0, "end")
+        ToastNotification.show(self.winfo_toplevel(), "Quick note saved.", color_theme="mint")
+        self.refresh()
+
     def _open_create_note_modal(self):
         def on_saved(data):
-            new_id = database.add_note(
+            nid = database.add_note(
                 title=data["title"],
                 content=data["content"],
                 subject_id=data["subject_id"],
                 category=data["category"],
                 pinned=data["pinned"]
             )
-            self.selected_note_id = new_id
+            self.selected_note_id = nid
             ToastNotification.show(self.winfo_toplevel(), "Note created.", color_theme="pink")
             self.refresh()
 
         NoteModal(self.winfo_toplevel(), on_saved)
-
-    def _handle_quick_capture(self):
-        text = self.ent_quick.get().strip()
-        if not text:
-            return
-        new_id = database.add_note(
-            title=f"Quick Capture ({date.today().strftime('%b %d')})",
-            content=text,
-            category="Quick Capture"
-        )
-        self.ent_quick.delete(0, "end")
-        self.selected_note_id = new_id
-        ToastNotification.show(self.winfo_toplevel(), "Quick note captured.", color_theme="mint")
-        self.refresh()

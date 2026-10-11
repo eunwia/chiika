@@ -1,7 +1,8 @@
 """
 ui/pomodoro_view.py - Modern Pomodoro Focus Timer for Chiikawa Study Planner
 Features customizable focus & break durations, digital clock, progress tracking,
-automatic SQLite session logging, and dynamic Chiikawa illustrations with vector controls.
+automatic SQLite session logging, and dynamic Chiikawa illustrations.
+Refactored with PageHeader, Card, PrimaryButton, SecondaryButton, and modern typography.
 """
 
 import tkinter as tk
@@ -12,6 +13,7 @@ from theme import Theme
 import database
 import assets_mgr
 import icons
+from ui.components.widgets import PageHeader, Card, PrimaryButton, SecondaryButton
 from ui.components.toast import ToastNotification
 
 
@@ -46,89 +48,87 @@ class PomodoroView(ctk.CTkFrame):
     def _build_ui(self):
         colors = Theme.current()
 
-        header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(fill="x", padx=24, pady=(16, 12))
-
-        ctk.CTkLabel(
-            header,
-            text="Focus Timer",
-            font=Theme.font_title(),
-            text_color=colors["text_primary"]
-        ).pack(anchor="w")
-
-        ctk.CTkLabel(
-            header,
-            text="Work in productive bursts with Chiikawa, take refreshing breaks to recharge.",
-            font=Theme.font_body(),
-            text_color=colors["text_secondary"]
-        ).pack(anchor="w")
-
-        center_card = ctk.CTkFrame(
+        # 1. Page Header
+        header = PageHeader(
             self,
-            fg_color=colors["bg_card"],
-            corner_radius=20,
-            border_width=1,
-            border_color=colors["border"]
+            title="Focus Timer",
+            subtitle="Work in productive bursts with Chiikawa, take refreshing breaks to recharge."
+        )
+        header.pack(fill="x", padx=24, pady=(20, 14))
+
+        # 2. Elevated Center Card
+        center_card = Card(
+            self,
+            corner_radius=Theme.RADIUS_XL,
+            hoverable=False
         )
         center_card.pack(fill="both", expand=True, padx=24, pady=(0, 16))
 
         content = ctk.CTkFrame(center_card, fg_color="transparent")
-        content.pack(expand=True, pady=15)
+        content.pack(expand=True, pady=20)
 
         self.seg_mode = ctk.CTkSegmentedButton(
             content,
             values=["Focus", "Short Break", "Long Break"],
             font=Theme.font_body_bold(),
+            height=40,
+            corner_radius=12,
             selected_color=colors["accent_pink"],
             selected_hover_color=colors["accent_pink_hover"],
             unselected_color=colors["bg_card_secondary"],
+            unselected_hover_color=colors["bg_sidebar_hover"],
             text_color=colors["text_primary"],
-            command=self._on_mode_change,
-            height=36
+            command=self._on_mode_change
         )
         self.seg_mode.set("Focus")
-        self.seg_mode.pack(pady=(0, 16))
+        self.seg_mode.pack(pady=(0, 18))
 
-        # Dynamic Chiikawa Mascot Image (Loads instantly <5ms from disk cache!)
+        # Dynamic Chiikawa Mascot Image
         self.lbl_illustration = ctk.CTkLabel(content, text="")
-        self.lbl_illustration.pack(pady=(0, 8))
+        self.lbl_illustration.pack(pady=(0, 10))
         self._update_illustration()
 
-        # Digital Countdown Display
+        # Digital Countdown Display (56px bold)
         self.lbl_time = ctk.CTkLabel(
             content,
             text="25:00",
             font=Theme.font_timer(),
             text_color=colors["accent_pink"]
         )
-        self.lbl_time.pack(pady=(0, 8))
+        self.lbl_time.pack(pady=(0, 10))
 
-        # Progress Bar
+        # Progress Bar (Substantial, rounded 10px)
         self.progress_bar = ctk.CTkProgressBar(
             content,
-            width=360,
-            height=8,
-            corner_radius=4,
+            width=420,
+            height=10,
+            corner_radius=5,
             fg_color=colors["bg_card_secondary"],
             progress_color=colors["accent_pink"]
         )
-        self.progress_bar.pack(pady=(0, 16))
+        self.progress_bar.pack(pady=(0, 18))
         self.progress_bar.set(1.0)
 
         # Subject Link Selector
         sub_row = ctk.CTkFrame(content, fg_color="transparent")
-        sub_row.pack(pady=(0, 18))
+        sub_row.pack(pady=(0, 20))
 
-        ctk.CTkLabel(sub_row, text="Course Focus:", font=Theme.font_small(), text_color=colors["text_secondary"]).pack(side="left", padx=(0, 8))
+        ctk.CTkLabel(
+            sub_row,
+            text="Course Focus:",
+            font=Theme.font_body(),
+            text_color=colors["text_secondary"]
+        ).pack(side="left", padx=(0, 8))
 
         self.subjects = database.get_all_subjects()
         s_names = ["General (No Subject)"] + [s["name"] for s in self.subjects]
         self.opt_subject = ctk.CTkOptionMenu(
             sub_row,
             values=s_names,
-            font=Theme.font_small(),
-            width=160,
-            height=28,
+            font=Theme.font_body(),
+            width=180,
+            height=36,
+            corner_radius=10,
             fg_color=colors["bg_card_secondary"],
             text_color=colors["text_primary"],
             button_color=colors["bg_card_secondary"],
@@ -136,65 +136,43 @@ class PomodoroView(ctk.CTkFrame):
         )
         self.opt_subject.pack(side="left")
 
-        # Timer Controls with Vector Icons
+        # Timer Controls with larger min height 44px buttons
         ctrl_row = ctk.CTkFrame(content, fg_color="transparent")
-        ctrl_row.pack(pady=(0, 10))
+        ctrl_row.pack(pady=(0, 14))
 
-        self.ic_play = icons.get_icon("play", size=13, color="#FFFFFF")
-        self.ic_pause = icons.get_icon("pause", size=13, color="#FFFFFF")
-        self.btn_toggle = ctk.CTkButton(
+        self.ic_play = icons.get_icon("play", size=15, color="#FFFFFF")
+        self.ic_pause = icons.get_icon("pause", size=15, color="#FFFFFF")
+        self.btn_toggle = PrimaryButton(
             ctrl_row,
             text=" Start Focus",
             image=self.ic_play,
-            compound="left",
-            font=Theme.font_body_bold(),
-            fg_color=colors["accent_pink"],
-            hover_color=colors["accent_pink_hover"],
-            text_color="#FFFFFF",
-            corner_radius=12,
-            height=40,
-            width=140,
-            command=self._toggle_timer
+            command=self._toggle_timer,
+            height=44,
+            width=160
         )
-        self.btn_toggle.pack(side="left", padx=6)
+        self.btn_toggle.pack(side="left", padx=8)
 
-        ic_reset = icons.get_icon("rotate_ccw", size=13, color=colors["text_primary"])
-        self.btn_reset = ctk.CTkButton(
+        ic_reset = icons.get_icon("rotate_ccw", size=15, color=colors["text_primary"])
+        self.btn_reset = SecondaryButton(
             ctrl_row,
             text=" Reset",
             image=ic_reset,
-            compound="left",
-            font=Theme.font_body(),
-            fg_color=colors["bg_card_secondary"],
-            hover_color=colors["bg_sidebar_hover"],
-            text_color=colors["text_primary"],
-            border_width=1,
-            border_color=colors["border"],
-            corner_radius=12,
-            height=40,
-            width=100,
-            command=self._reset_timer
+            command=self._reset_timer,
+            height=44,
+            width=120
         )
-        self.btn_reset.pack(side="left", padx=6)
+        self.btn_reset.pack(side="left", padx=8)
 
-        ic_skip = icons.get_icon("skip_forward", size=13, color=colors["text_primary"])
-        self.btn_skip = ctk.CTkButton(
+        ic_skip = icons.get_icon("skip_forward", size=15, color=colors["text_primary"])
+        self.btn_skip = SecondaryButton(
             ctrl_row,
             text=" Skip",
             image=ic_skip,
-            compound="left",
-            font=Theme.font_body(),
-            fg_color=colors["bg_card_secondary"],
-            hover_color=colors["bg_sidebar_hover"],
-            text_color=colors["text_primary"],
-            border_width=1,
-            border_color=colors["border"],
-            corner_radius=12,
-            height=40,
-            width=90,
-            command=self._skip_mode
+            command=self._skip_mode,
+            height=44,
+            width=110
         )
-        self.btn_skip.pack(side="left", padx=6)
+        self.btn_skip.pack(side="left", padx=8)
 
         self.lbl_sessions = ctk.CTkLabel(
             content,
@@ -206,11 +184,11 @@ class PomodoroView(ctk.CTkFrame):
 
     def _update_illustration(self):
         if self.mode == "focus":
-            img = assets_mgr.get_illustration("study", size=(120, 120))
+            img = assets_mgr.get_illustration("study", size=(130, 130))
         elif self.mode == "short_break":
-            img = assets_mgr.get_illustration("coffee", size=(120, 120))
+            img = assets_mgr.get_illustration("coffee", size=(130, 130))
         else:
-            img = assets_mgr.get_illustration("books", size=(120, 120))
+            img = assets_mgr.get_illustration("books", size=(130, 130))
 
         if img:
             self.lbl_illustration.configure(image=img)
@@ -218,24 +196,36 @@ class PomodoroView(ctk.CTkFrame):
     def _on_mode_change(self, val: str):
         self._pause_timer()
         colors = Theme.current()
-        if "Focus" in val:
+        if val == "Focus":
             self.mode = "focus"
             self.total_time = self.focus_duration
-            self.btn_toggle.configure(text=" Start Focus", image=self.ic_play, fg_color=colors["accent_pink"])
-            self.progress_bar.configure(progress_color=colors["accent_pink"])
             self.lbl_time.configure(text_color=colors["accent_pink"])
-        elif "Short" in val:
+            self.progress_bar.configure(progress_color=colors["accent_pink"])
+            self.btn_toggle.configure(
+                text=" Start Focus",
+                fg_color=colors["accent_pink"],
+                hover_color=colors["accent_pink_hover"]
+            )
+        elif val == "Short Break":
             self.mode = "short_break"
             self.total_time = self.short_break_duration
-            self.btn_toggle.configure(text=" Start Break", image=self.ic_play, fg_color=colors["accent_mint"])
-            self.progress_bar.configure(progress_color=colors["accent_mint"])
             self.lbl_time.configure(text_color=colors["accent_mint"])
+            self.progress_bar.configure(progress_color=colors["accent_mint"])
+            self.btn_toggle.configure(
+                text=" Start Break",
+                fg_color=colors["accent_mint"],
+                hover_color=colors["accent_mint_hover"]
+            )
         else:
             self.mode = "long_break"
             self.total_time = self.long_break_duration
-            self.btn_toggle.configure(text=" Start Break", image=self.ic_play, fg_color=colors["accent_yellow"])
-            self.progress_bar.configure(progress_color=colors["accent_yellow"])
-            self.lbl_time.configure(text_color=colors["accent_yellow"])
+            self.lbl_time.configure(text_color=colors["accent_blue"])
+            self.progress_bar.configure(progress_color=colors["accent_blue"])
+            self.btn_toggle.configure(
+                text=" Start Long Break",
+                fg_color=colors["accent_blue"],
+                hover_color=colors["accent_blue_hover"]
+            )
 
         self.time_left = self.total_time
         self._update_display()
@@ -257,8 +247,8 @@ class PomodoroView(ctk.CTkFrame):
         if self.timer_job:
             self.after_cancel(self.timer_job)
             self.timer_job = None
-        txt = " Resume" if self.time_left < self.total_time else " Start"
-        self.btn_toggle.configure(text=txt, image=self.ic_play)
+        current_text = " Resume Focus" if self.mode == "focus" else " Resume Break"
+        self.btn_toggle.configure(text=current_text, image=self.ic_play)
 
     def _reset_timer(self):
         self._pause_timer()
@@ -283,22 +273,21 @@ class PomodoroView(ctk.CTkFrame):
             self._update_display()
             self.timer_job = self.after(1000, self._tick)
         else:
-            self._on_timer_completed()
+            self._on_timer_complete()
 
     def _update_display(self):
         mins = self.time_left // 60
         secs = self.time_left % 60
         self.lbl_time.configure(text=f"{mins:02d}:{secs:02d}")
-        fraction = self.time_left / max(1, self.total_time)
-        self.progress_bar.set(fraction)
+        if self.total_time > 0:
+            self.progress_bar.set(self.time_left / self.total_time)
 
-    def _on_timer_completed(self):
-        self._pause_timer()
-        self.bell()
+    def _on_timer_complete(self):
+        self.is_running = False
+        colors = Theme.current()
 
         if self.mode == "focus":
             self.sessions_completed_today += 1
-            dur_mins = self.focus_duration // 60
             sel_sub_name = self.opt_subject.get()
             sub_id = None
             for s in self.subjects:
@@ -306,47 +295,33 @@ class PomodoroView(ctk.CTkFrame):
                     sub_id = s["id"]
                     break
 
+            mins_studied = self.focus_duration // 60
             database.log_study_session(
                 subject_id=sub_id,
-                topic="Pomodoro Focus Session",
-                duration_minutes=dur_mins,
-                session_type="Pomodoro",
-                notes="Completed focus block"
+                topic=sel_sub_name if sub_id else "Focus Session",
+                duration_minutes=mins_studied,
+                session_type="Pomodoro"
             )
-
-            ToastNotification.show(
-                self.winfo_toplevel(),
-                f"Focus session complete ({dur_mins} mins)! Take a well-deserved break.",
-                color_theme="pink",
-                duration_ms=4500
-            )
-
+            ToastNotification.show(self.winfo_toplevel(), "Focus session finished! Time for a break.", color_theme="pink", duration_ms=4500)
             self.seg_mode.set("Short Break")
             self._on_mode_change("Short Break")
         else:
-            ToastNotification.show(
-                self.winfo_toplevel(),
-                "Break completed. Ready to begin your next focus sprint?",
-                color_theme="mint",
-                duration_ms=4000
-            )
+            ToastNotification.show(self.winfo_toplevel(), "Break over! Ready to focus again?", color_theme="mint", duration_ms=4500)
             self.seg_mode.set("Focus")
             self._on_mode_change("Focus")
 
         self.refresh()
 
     def refresh(self):
-        self._load_settings()
-        today_str = date.today().isoformat()
-        sessions = [s for s in database.get_study_sessions() if s.get("date") == today_str and s.get("session_type") == "Pomodoro"]
-        self.sessions_completed_today = len(sessions)
-        self.lbl_sessions.configure(text=f"Completed Today: {self.sessions_completed_today} Focus Sessions ({self.sessions_completed_today * (self.focus_duration // 60)} mins)")
+        stats = database.get_dashboard_stats()
+        sessions = stats.get("sessions_today", 0)
+        self.lbl_sessions.configure(text=f"Completed Today: {sessions} Focus Sessions")
 
+        curr_sel = self.opt_subject.get()
         self.subjects = database.get_all_subjects()
         s_names = ["General (No Subject)"] + [s["name"] for s in self.subjects]
-        cur_sub = self.opt_subject.get()
         self.opt_subject.configure(values=s_names)
-        if cur_sub in s_names:
-            self.opt_subject.set(cur_sub)
+        if curr_sel in s_names:
+            self.opt_subject.set(curr_sel)
         else:
-            self.opt_subject.set("General (No Subject)")
+            self.opt_subject.set(s_names[0])

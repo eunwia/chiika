@@ -1,6 +1,7 @@
 """
 ui/study_planner_view.py - Modern Study Planner View for Chiikawa Study Planner
 Organizes academic courses, exam/assignment countdowns, and study session logs.
+Refactored with PageHeader, Card, PrimaryButton, GhostButton, and EmptyState.
 """
 
 import tkinter as tk
@@ -10,6 +11,13 @@ from typing import Optional, Any
 from theme import Theme
 import database
 import icons
+from ui.components.widgets import (
+    PageHeader,
+    Card,
+    PrimaryButton,
+    GhostButton,
+    EmptyState
+)
 from ui.components.modal import SubjectModal, EventModal, SessionModal
 from ui.components.toast import ToastNotification
 
@@ -27,47 +35,36 @@ class StudyPlannerView(ctk.CTkFrame):
     def _build_ui(self):
         colors = Theme.current()
 
-        # Header Frame
-        header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(fill="x", padx=24, pady=(16, 12))
+        # 1. Page Header with Tab Switcher
+        header = PageHeader(
+            self,
+            title="Study Planner",
+            subtitle="Manage your academic courses, exam countdowns, and study logs."
+        )
+        header.pack(fill="x", padx=24, pady=(20, 14))
 
-        title_box = ctk.CTkFrame(header, fg_color="transparent")
-        title_box.pack(side="left")
-
-        ctk.CTkLabel(
-            title_box,
-            text="Study Planner",
-            font=Theme.font_title(),
-            text_color=colors["text_primary"]
-        ).pack(anchor="w")
-
-        ctk.CTkLabel(
-            title_box,
-            text="Manage your academic courses, exam countdowns, and study logs.",
-            font=Theme.font_body(),
-            text_color=colors["text_secondary"]
-        ).pack(anchor="w")
-
-        # Tab switcher
         self.seg_tab = ctk.CTkSegmentedButton(
-            header,
+            header.actions_container,
             values=["Courses", "Exams & Deadlines", "Study Logs"],
             font=Theme.font_body(),
+            height=Theme.BTN_HEIGHT,
+            corner_radius=10,
             selected_color=colors["accent_pink"],
             selected_hover_color=colors["accent_pink_hover"],
             unselected_color=colors["bg_card"],
+            unselected_hover_color=colors["bg_sidebar_hover"],
             text_color=colors["text_primary"],
             command=self._on_tab_change
         )
         self.seg_tab.set("Courses")
         self.seg_tab.pack(side="right")
 
-        # Main Scrollable Container
+        # 2. Main Scrollable Container
         self.content_scroll = ctk.CTkScrollableFrame(
             self,
             fg_color="transparent",
-            scrollbar_button_color=colors["border_subtle"],
-            scrollbar_button_hover_color=colors["accent_pink"]
+            scrollbar_button_color=(Theme.LIGHT["border_subtle"], Theme.DARK["border_subtle"]),
+            scrollbar_button_hover_color=(Theme.LIGHT["accent_pink"], Theme.DARK["accent_pink"])
         )
         self.content_scroll.pack(fill="both", expand=True, padx=24, pady=(0, 16))
 
@@ -98,23 +95,18 @@ class StudyPlannerView(ctk.CTkFrame):
         ctk.CTkLabel(
             top_row,
             text="Active Academic Courses",
-            font=Theme.font_header(),
+            font=Theme.font_card_title(),
             text_color=colors["text_primary"]
         ).pack(side="left")
 
-        ic_plus = icons.get_icon("plus", size=14, color="#FFFFFF")
-        btn_add = ctk.CTkButton(
+        ic_plus = icons.get_icon("plus", size=16, color="#FFFFFF")
+        btn_add = PrimaryButton(
             top_row,
             text=" Add Course",
             image=ic_plus,
-            compound="left",
-            font=Theme.font_body_bold(),
-            fg_color=colors["accent_pink"],
-            hover_color=colors["accent_pink_hover"],
-            text_color="#FFFFFF",
-            corner_radius=10,
-            height=34,
-            command=self._open_add_subject_modal
+            command=self._open_add_subject_modal,
+            width=140,
+            height=Theme.BTN_HEIGHT
         )
         btn_add.pack(side="right")
 
@@ -128,12 +120,15 @@ class StudyPlannerView(ctk.CTkFrame):
                 subject_minutes[sid] = subject_minutes.get(sid, 0) + s["duration_minutes"]
 
         if not subjects:
-            ctk.CTkLabel(
+            empty = EmptyState(
                 self.content_scroll,
-                text="No courses added yet. Click 'Add Course' to begin organizing your subjects.",
-                font=Theme.font_body(),
-                text_color=colors["text_secondary"]
-            ).pack(pady=30)
+                title="No courses added yet",
+                description="Organize your curriculum and track progress by adding your subjects.",
+                mascot_name="laptop",
+                action_text="+ Add a Course",
+                action_command=self._open_add_subject_modal
+            )
+            empty.pack(fill="x", pady=24)
             return
 
         grid_frame = ctk.CTkFrame(self.content_scroll, fg_color="transparent")
@@ -144,17 +139,15 @@ class StudyPlannerView(ctk.CTkFrame):
             row = i // 2
             col = i % 2
 
-            card = ctk.CTkFrame(
+            card = Card(
                 grid_frame,
-                fg_color=colors["bg_card"],
-                corner_radius=14,
-                border_width=1,
-                border_color=colors["border"]
+                corner_radius=Theme.RADIUS_LG,
+                hoverable=True
             )
-            card.grid(row=row, column=col, sticky="nsew", padx=6, pady=6)
+            card.grid(row=row, column=col, sticky="nsew", padx=8, pady=8)
 
             card_inner = ctk.CTkFrame(card, fg_color="transparent")
-            card_inner.pack(fill="both", expand=True, padx=16, pady=14)
+            card_inner.pack(fill="both", expand=True, padx=Theme.CARD_PAD_X, pady=Theme.CARD_PAD_Y)
 
             # Header
             h_line = ctk.CTkFrame(card_inner, fg_color="transparent")
@@ -162,44 +155,51 @@ class StudyPlannerView(ctk.CTkFrame):
 
             sub_col = sub.get("color", colors["accent_pink"])
 
-            # Left color pill
-            color_dot = ctk.CTkFrame(h_line, width=12, height=12, corner_radius=6, fg_color=sub_col)
+            color_dot = ctk.CTkFrame(h_line, width=14, height=14, corner_radius=7, fg_color=sub_col)
             color_dot.pack(side="left", padx=(0, 10))
 
             t_box = ctk.CTkFrame(h_line, fg_color="transparent")
             t_box.pack(side="left", fill="x", expand=True)
 
-            ctk.CTkLabel(t_box, text=sub["name"], font=Theme.font_header(), text_color=colors["text_primary"], anchor="w").pack(anchor="w")
+            ctk.CTkLabel(
+                t_box,
+                text=sub["name"],
+                font=Theme.font_card_title(),
+                text_color=colors["text_primary"],
+                anchor="w"
+            ).pack(anchor="w")
 
-            # Actions with vector icons
-            ic_edit = icons.get_icon("edit", size=13, color=colors["text_secondary"])
-            btn_edit = ctk.CTkButton(
+            ic_edit = icons.get_icon("edit", size=15, color=colors["text_secondary"])
+            btn_edit = GhostButton(
                 h_line,
                 text="",
                 image=ic_edit,
-                width=28,
-                height=28,
-                fg_color="transparent",
-                hover_color=colors["bg_card_secondary"],
+                width=34,
+                height=34,
                 command=lambda s=sub: self._open_edit_subject_modal(s)
             )
             btn_edit.pack(side="right", padx=(4, 0))
 
-            ic_trash = icons.get_icon("trash", size=13, color="#D94161")
-            btn_del = ctk.CTkButton(
+            ic_trash = icons.get_icon("trash", size=15, color=colors["priority_high_fg"])
+            btn_del = GhostButton(
                 h_line,
                 text="",
                 image=ic_trash,
-                width=28,
-                height=28,
-                fg_color="transparent",
-                hover_color=colors["bg_card_secondary"],
+                width=34,
+                height=34,
                 command=lambda sid=sub["id"]: self._delete_subject(sid)
             )
             btn_del.pack(side="right")
 
             desc = sub.get("description", "").strip() or "No course description provided."
-            ctk.CTkLabel(card_inner, text=desc, font=Theme.font_small(), text_color=colors["text_secondary"], wraplength=320, justify="left").pack(anchor="w", pady=(8, 10))
+            ctk.CTkLabel(
+                card_inner,
+                text=desc,
+                font=Theme.font_body(),
+                text_color=colors["text_secondary"],
+                wraplength=340,
+                justify="left"
+            ).pack(anchor="w", pady=(8, 12))
 
             mins = subject_minutes.get(sub["id"], 0)
             hrs = mins // 60
@@ -215,9 +215,9 @@ class StudyPlannerView(ctk.CTkFrame):
                 font=Theme.font_tag(),
                 text_color=colors["text_primary"],
                 fg_color=colors["bg_card_secondary"],
-                corner_radius=5,
-                padx=8,
-                pady=2
+                corner_radius=6,
+                padx=10,
+                pady=3
             ).pack(side="left")
 
     # -------------------------------------------------------------
@@ -232,23 +232,18 @@ class StudyPlannerView(ctk.CTkFrame):
         ctk.CTkLabel(
             top_row,
             text="Exams, Assignments & Deadlines",
-            font=Theme.font_header(),
+            font=Theme.font_card_title(),
             text_color=colors["text_primary"]
         ).pack(side="left")
 
-        ic_plus = icons.get_icon("plus", size=14, color="#FFFFFF")
-        btn_add = ctk.CTkButton(
+        ic_plus = icons.get_icon("plus", size=16, color="#FFFFFF")
+        btn_add = PrimaryButton(
             top_row,
             text=" Add Exam / Deadline",
             image=ic_plus,
-            compound="left",
-            font=Theme.font_body_bold(),
-            fg_color=colors["accent_pink"],
-            hover_color=colors["accent_pink_hover"],
-            text_color="#FFFFFF",
-            corner_radius=10,
-            height=34,
-            command=self._open_add_exam_modal
+            command=self._open_add_exam_modal,
+            width=190,
+            height=Theme.BTN_HEIGHT
         )
         btn_add.pack(side="right")
 
@@ -256,23 +251,24 @@ class StudyPlannerView(ctk.CTkFrame):
         academic_events = [e for e in events if e.get("event_type") in ("Exam", "Assignment", "Deadline")]
 
         if not academic_events:
-            ctk.CTkLabel(
+            empty = EmptyState(
                 self.content_scroll,
-                text="No upcoming exams or deadlines logged.",
-                font=Theme.font_body(),
-                text_color=colors["text_secondary"]
-            ).pack(pady=30)
+                title="No deadlines logged",
+                description="Keep yourself stress-free by scheduling tests and project milestones early.",
+                mascot_name="passed",
+                action_text="+ Add Deadline",
+                action_command=self._open_add_exam_modal
+            )
+            empty.pack(fill="x", pady=24)
             return
 
         for ev in academic_events:
-            card = ctk.CTkFrame(
+            card = Card(
                 self.content_scroll,
-                fg_color=colors["bg_card"],
-                corner_radius=12,
-                border_width=1,
-                border_color=colors["border"]
+                corner_radius=Theme.RADIUS_MD,
+                hoverable=True
             )
-            card.pack(fill="x", pady=4)
+            card.pack(fill="x", pady=5)
 
             card_inner = ctk.CTkFrame(card, fg_color="transparent")
             card_inner.pack(fill="both", expand=True, padx=16, pady=12)
@@ -314,10 +310,10 @@ class StudyPlannerView(ctk.CTkFrame):
                 font=Theme.font_tag(),
                 text_color=badge_fg,
                 fg_color=badge_bg,
-                corner_radius=5,
+                corner_radius=6,
                 padx=8,
                 pady=2
-            ).pack(side="left", padx=(0, 8))
+            ).pack(side="left", padx=(0, 10))
 
             ctk.CTkLabel(
                 h_line,
@@ -331,19 +327,17 @@ class StudyPlannerView(ctk.CTkFrame):
             ctk.CTkLabel(
                 left_box,
                 text=f"Course: {sub_name}  •  Date: {ev.get('start_date')} at {ev.get('start_time')}{notes_str}",
-                font=Theme.font_small(),
+                font=Theme.font_body(),
                 text_color=colors["text_secondary"]
             ).pack(anchor="w", pady=(4, 0))
 
-            ic_trash = icons.get_icon("trash", size=13, color="#D94161")
-            btn_del = ctk.CTkButton(
+            ic_trash = icons.get_icon("trash", size=15, color=colors["priority_high_fg"])
+            btn_del = GhostButton(
                 card_inner,
                 text="",
                 image=ic_trash,
-                width=28,
-                height=28,
-                fg_color="transparent",
-                hover_color=colors["bg_card_secondary"],
+                width=34,
+                height=34,
                 command=lambda eid=ev["id"]: self._delete_event(eid)
             )
             btn_del.pack(side="right")
@@ -360,48 +354,44 @@ class StudyPlannerView(ctk.CTkFrame):
         ctk.CTkLabel(
             top_row,
             text="Study Sessions & Focus Logs",
-            font=Theme.font_header(),
+            font=Theme.font_card_title(),
             text_color=colors["text_primary"]
         ).pack(side="left")
 
-        ic_plus = icons.get_icon("plus", size=14, color="#FFFFFF")
-        btn_log = ctk.CTkButton(
+        ic_plus = icons.get_icon("plus", size=16, color="#FFFFFF")
+        btn_log = PrimaryButton(
             top_row,
             text=" Log Study Session",
             image=ic_plus,
-            compound="left",
-            font=Theme.font_body_bold(),
-            fg_color=colors["accent_pink"],
-            hover_color=colors["accent_pink_hover"],
-            text_color="#FFFFFF",
-            corner_radius=10,
-            height=34,
-            command=self._open_manual_log_dialog
+            command=self._open_manual_log_dialog,
+            width=180,
+            height=Theme.BTN_HEIGHT
         )
         btn_log.pack(side="right")
 
         sessions = database.get_study_sessions(limit=50)
         if not sessions:
-            ctk.CTkLabel(
+            empty = EmptyState(
                 self.content_scroll,
-                text="No study sessions logged yet. Complete a Pomodoro session or log one manually.",
-                font=Theme.font_body(),
-                text_color=colors["text_secondary"]
-            ).pack(pady=30)
+                title="No study logs recorded yet",
+                description="Complete a Pomodoro session or log your study hours manually.",
+                mascot_name="laptop",
+                action_text="+ Log a Session",
+                action_command=self._open_manual_log_dialog
+            )
+            empty.pack(fill="x", pady=24)
             return
 
         for ss in sessions:
-            card = ctk.CTkFrame(
+            card = Card(
                 self.content_scroll,
-                fg_color=colors["bg_card"],
-                corner_radius=12,
-                border_width=1,
-                border_color=colors["border_subtle"]
+                corner_radius=Theme.RADIUS_MD,
+                hoverable=True
             )
             card.pack(fill="x", pady=4)
 
             inner = ctk.CTkFrame(card, fg_color="transparent")
-            inner.pack(fill="x", padx=14, pady=10)
+            inner.pack(fill="x", padx=16, pady=12)
 
             left = ctk.CTkFrame(inner, fg_color="transparent")
             left.pack(side="left", fill="both", expand=True)
@@ -418,9 +408,9 @@ class StudyPlannerView(ctk.CTkFrame):
             ctk.CTkLabel(
                 left,
                 text=f"Course: {sub_txt}  •  Date: {ss['date']}  •  Type: {ss.get('session_type', 'Pomodoro')}{notes_txt}",
-                font=Theme.font_small(),
+                font=Theme.font_body(),
                 text_color=colors["text_secondary"]
-            ).pack(anchor="w", pady=(2, 0))
+            ).pack(anchor="w", pady=(3, 0))
 
     # Modal Handlers
     def _open_add_subject_modal(self):

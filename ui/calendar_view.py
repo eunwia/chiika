@@ -11,6 +11,13 @@ from typing import Optional, List, Dict, Any
 from theme import Theme
 import database
 import icons
+from ui.components.widgets import (
+    Card,
+    PrimaryButton,
+    SecondaryButton,
+    GhostButton,
+    StyledCheckBox
+)
 from ui.components.modal import EventModal, TaskModal
 from ui.components.toast import ToastNotification
 
@@ -36,55 +43,48 @@ class CalendarView(ctk.CTkFrame):
 
         # Top Control Bar
         header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(fill="x", padx=24, pady=(16, 12))
+        header.pack(fill="x", padx=24, pady=(20, 14))
 
         left_nav = ctk.CTkFrame(header, fg_color="transparent")
         left_nav.pack(side="left")
 
-        ic_prev = icons.get_icon("chevron_left", size=14, color=colors["text_primary"])
+        ic_prev = icons.get_icon("chevron_left", size=16, color=colors["text_primary"])
         self.btn_prev = ctk.CTkButton(
             left_nav,
             text="",
             image=ic_prev,
-            width=34,
-            height=34,
+            width=40,
+            height=Theme.BTN_HEIGHT,
             fg_color=colors["bg_card"],
             hover_color=colors["bg_sidebar_hover"],
             border_width=1,
             border_color=colors["border"],
-            corner_radius=8,
+            corner_radius=10,
             command=self._prev_period
         )
         self.btn_prev.pack(side="left", padx=(0, 6))
 
-        ic_next = icons.get_icon("chevron_right", size=14, color=colors["text_primary"])
+        ic_next = icons.get_icon("chevron_right", size=16, color=colors["text_primary"])
         self.btn_next = ctk.CTkButton(
             left_nav,
             text="",
             image=ic_next,
-            width=34,
-            height=34,
+            width=40,
+            height=Theme.BTN_HEIGHT,
             fg_color=colors["bg_card"],
             hover_color=colors["bg_sidebar_hover"],
             border_width=1,
             border_color=colors["border"],
-            corner_radius=8,
+            corner_radius=10,
             command=self._next_period
         )
         self.btn_next.pack(side="left", padx=(0, 10))
 
-        self.btn_today = ctk.CTkButton(
+        self.btn_today = SecondaryButton(
             left_nav,
             text="Today",
-            font=Theme.font_body(),
-            width=65,
-            height=34,
-            fg_color=colors["bg_card"],
-            hover_color=colors["bg_sidebar_hover"],
-            text_color=colors["text_primary"],
-            border_width=1,
-            border_color=colors["border"],
-            corner_radius=8,
+            width=75,
+            height=Theme.BTN_HEIGHT,
             command=self._go_today
         )
         self.btn_today.pack(side="left", padx=(0, 14))
@@ -92,7 +92,7 @@ class CalendarView(ctk.CTkFrame):
         self.lbl_period = ctk.CTkLabel(
             left_nav,
             text="",
-            font=Theme.font_header(),
+            font=Theme.font_card_title(),
             text_color=colors["text_primary"]
         )
         self.lbl_period.pack(side="left")
@@ -105,30 +105,26 @@ class CalendarView(ctk.CTkFrame):
             right_controls,
             values=["Month", "Week", "Day"],
             font=Theme.font_body(),
+            height=Theme.BTN_HEIGHT,
+            corner_radius=10,
             selected_color=colors["accent_pink"],
             selected_hover_color=colors["accent_pink_hover"],
             unselected_color=colors["bg_card"],
             unselected_hover_color=colors["bg_sidebar_hover"],
             text_color=colors["text_primary"],
-            command=self._on_view_mode_change,
-            height=34
+            command=self._on_view_mode_change
         )
         self.seg_view.set("Month")
         self.seg_view.pack(side="left", padx=(0, 12))
 
-        ic_plus = icons.get_icon("plus", size=14, color="#FFFFFF")
-        btn_add_event = ctk.CTkButton(
+        ic_plus = icons.get_icon("plus", size=16, color="#FFFFFF")
+        btn_add_event = PrimaryButton(
             right_controls,
             text=" Schedule Event",
             image=ic_plus,
-            compound="left",
-            font=Theme.font_body_bold(),
-            fg_color=colors["accent_pink"],
-            hover_color=colors["accent_pink_hover"],
-            text_color="#FFFFFF",
-            corner_radius=10,
-            height=34,
-            command=self._open_add_event_modal
+            command=self._open_add_event_modal,
+            width=150,
+            height=Theme.BTN_HEIGHT
         )
         btn_add_event.pack(side="left")
 
