@@ -46,6 +46,7 @@ def init_db() -> None:
                 priority TEXT DEFAULT 'Medium',
                 due_date TEXT,
                 due_time TEXT DEFAULT '23:59',
+                task_type TEXT DEFAULT 'daily',
                 completed INTEGER DEFAULT 0,
                 completed_at TEXT,
                 created_at TEXT NOT NULL
@@ -153,6 +154,59 @@ def init_db() -> None:
         }
         for k, v in defaults.items():
             cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?);", (k, v))
+
+        # Schema migration: ensure tasks table has task_type column
+        cursor.execute("PRAGMA table_info(tasks);")
+        task_cols = [col[1] for col in cursor.fetchall()]
+        if "task_type" not in task_cols:
+            cursor.execute("ALTER TABLE tasks ADD COLUMN task_type TEXT DEFAULT 'daily';")
+
+        # Schema migration: ensure event_categories table exists
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS event_categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                color TEXT NOT NULL,
+                is_default INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL
+            );
+        """)
+        cursor.execute("SELECT COUNT(*) as count FROM event_categories;")
+        if cursor.fetchone()["count"] == 0:
+            now_iso = datetime.now().isoformat()
+            default_categories = [
+                ("Exams", "#FF7597", 1),
+                ("Assignments", "#5B9BD5", 1),
+                ("Study Sessions", "#42B883", 1),
+                ("Deadlines", "#F5A623", 1),
+                ("Personal", "#9A7BD6", 1),
+                ("Other", "#F08CBA", 1),
+            ]
+            for cat_name, cat_color, is_def in default_categories:
+                cursor.execute("""
+                    INSERT OR IGNORE INTO event_categories (name, color, is_default, created_at)
+                    VALUES (?, ?, ?, ?);
+                """, (cat_name, cat_color, is_def, now_iso))
+
+        # Schema migration: ensure calendar_events table has color, location, category, reminder, recurring columns
+        cursor.execute("PRAGMA table_info(calendar_events);")
+        ev_cols = [col[1] for col in cursor.fetchall()]
+        if "color" not in ev_cols:
+            cursor.execute("ALTER TABLE calendar_events ADD COLUMN color TEXT DEFAULT '';")
+        if "location" not in ev_cols:
+            cursor.execute("ALTER TABLE calendar_events ADD COLUMN location TEXT DEFAULT '';")
+        if "category" not in ev_cols:
+            cursor.execute("ALTER TABLE calendar_events ADD COLUMN category TEXT DEFAULT '';")
+        if "reminder" not in ev_cols:
+            cursor.execute("ALTER TABLE calendar_events ADD COLUMN reminder TEXT DEFAULT 'None';")
+        if "recurring" not in ev_cols:
+            cursor.execute("ALTER TABLE calendar_events ADD COLUMN recurring TEXT DEFAULT 'None';")
+
+        cursor.execute("""
+            UPDATE calendar_events
+            SET category = event_type
+            WHERE category IS NULL OR category = '';
+        """)
 
         conn.commit()
 
@@ -340,7 +394,8 @@ def get_tasks(
     category: Optional[str] = None,
     priority: Optional[str] = None,
     due_date: Optional[str] = None,
-    search_query: Optional[str] = None
+    search_query: Optional[str] = None,
+    task_type: Optional[str] = None   # daily, general, or None (all)
 ) -> List[Dict[str, Any]]:
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -373,6 +428,13 @@ def get_tasks(
             query += " AND t.due_date = ?"
             params.append(due_date)
 
+        if task_type:
+            if task_type == "daily":
+                query += " AND (t.task_type = 'daily' OR t.task_type IS NULL)"
+            else:
+                query += " AND t.task_type = ?"
+                params.append(task_type)
+
         if search_query:
             query += " AND (t.title LIKE ? OR t.description LIKE ?)"
             like_str = f"%{search_query}%"
@@ -390,15 +452,16 @@ def add_task(
     category: str = "Study",
     priority: str = "Medium",
     due_date: Optional[str] = None,
-    due_time: str = "23:59"
+    due_time: str = "23:59",
+    task_type: str = "daily"
 ) -> int:
     with get_connection() as conn:
         cursor = conn.cursor()
         now_str = datetime.now().isoformat()
         cursor.execute("""
-            INSERT INTO tasks (title, description, subject_id, category, priority, due_date, due_time, completed, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?);
-        """, (title, description, subject_id, category, priority, due_date, due_time, now_str))
+            INSERT INTO tasks (title, description, subject_id, category, priority, due_date, due_time, task_type, completed, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?);
+        """, (title, description, subject_id, category, priority, due_date, due_time, task_type, now_str))
         conn.commit()
         return cursor.lastrowid
 
@@ -411,15 +474,23 @@ def update_task(
     category: str,
     priority: str,
     due_date: Optional[str],
-    due_time: str
+    due_time: str,
+    task_type: Optional[str] = None
 ) -> None:
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE tasks
-            SET title = ?, description = ?, subject_id = ?, category = ?, priority = ?, due_date = ?, due_time = ?
-            WHERE id = ?;
-        """, (title, description, subject_id, category, priority, due_date, due_time, task_id))
+        if task_type is not None:
+            cursor.execute("""
+                UPDATE tasks
+                SET title = ?, description = ?, subject_id = ?, category = ?, priority = ?, due_date = ?, due_time = ?, task_type = ?
+                WHERE id = ?;
+            """, (title, description, subject_id, category, priority, due_date, due_time, task_type, task_id))
+        else:
+            cursor.execute("""
+                UPDATE tasks
+                SET title = ?, description = ?, subject_id = ?, category = ?, priority = ?, due_date = ?, due_time = ?
+                WHERE id = ?;
+            """, (title, description, subject_id, category, priority, due_date, due_time, task_id))
         conn.commit()
 
 
@@ -492,8 +563,128 @@ def delete_sticky_note(note_id: int) -> None:
 
 
 # -------------------------------------------------------------
-# CRUD: Calendar Events
+# CRUD: Calendar Events & Categories
 # -------------------------------------------------------------
+def get_event_categories() -> List[Dict[str, Any]]:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM event_categories ORDER BY id ASC;")
+        rows = [dict(r) for r in cursor.fetchall()]
+        if not rows:
+            return [
+                {"id": 1, "name": "Exams", "color": "#FF7597", "is_default": 1},
+                {"id": 2, "name": "Assignments", "color": "#5B9BD5", "is_default": 1},
+                {"id": 3, "name": "Study Sessions", "color": "#42B883", "is_default": 1},
+                {"id": 4, "name": "Deadlines", "color": "#F5A623", "is_default": 1},
+                {"id": 5, "name": "Personal", "color": "#9A7BD6", "is_default": 1},
+                {"id": 6, "name": "Other", "color": "#F08CBA", "is_default": 1},
+            ]
+        return rows
+
+
+def get_category_color(category_name: str) -> str:
+    if not category_name:
+        return "#FF7597"
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT color FROM event_categories WHERE LOWER(name) = LOWER(?);", (category_name.strip(),))
+        row = cursor.fetchone()
+        if row and row["color"]:
+            return row["color"]
+    default_colors = {
+        "exam": "#FF7597",
+        "exams": "#FF7597",
+        "assignment": "#5B9BD5",
+        "assignments": "#5B9BD5",
+        "study session": "#42B883",
+        "study sessions": "#42B883",
+        "deadline": "#F5A623",
+        "deadlines": "#F5A623",
+        "personal": "#9A7BD6",
+        "event": "#F08CBA",
+        "other": "#F08CBA",
+    }
+    return default_colors.get(category_name.lower().strip(), "#FF7597")
+
+
+def add_event_category(name: str, color: str) -> int:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        now_str = datetime.now().isoformat()
+        cursor.execute("""
+            INSERT INTO event_categories (name, color, is_default, created_at)
+            VALUES (?, ?, 0, ?);
+        """, (name.strip(), color.strip(), now_str))
+        conn.commit()
+        return cursor.lastrowid
+
+
+def update_event_category(cat_id: int, name: str, color: str) -> None:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM event_categories WHERE id = ?;", (cat_id,))
+        old = cursor.fetchone()
+        old_name = old["name"] if old else None
+
+        cursor.execute("""
+            UPDATE event_categories
+            SET name = ?, color = ?
+            WHERE id = ?;
+        """, (name.strip(), color.strip(), cat_id))
+
+        if old_name:
+            cursor.execute("""
+                UPDATE calendar_events
+                SET category = ?, color = ?
+                WHERE category = ?;
+            """, (name.strip(), color.strip(), old_name))
+        conn.commit()
+
+
+def rename_event_category(cat_id: int, new_name: str) -> None:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT color FROM event_categories WHERE id = ?;", (cat_id,))
+        row = cursor.fetchone()
+        color = row["color"] if row else "#FF7597"
+        update_event_category(cat_id, new_name, color)
+
+
+def delete_event_category(cat_id: int) -> bool:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM event_categories WHERE id = ?;", (cat_id,))
+        row = cursor.fetchone()
+        if not row:
+            return False
+        cat_name = row["name"]
+
+        cursor.execute("""
+            UPDATE calendar_events
+            SET category = 'Other', color = '#F08CBA'
+            WHERE category = ?;
+        """, (cat_name,))
+
+        cursor.execute("DELETE FROM event_categories WHERE id = ?;", (cat_id,))
+        conn.commit()
+        return True
+
+
+def get_contrast_text_color(hex_color: str) -> str:
+    """Returns #FFFFFF or #2D2630 based on perceived luminance of the background hex."""
+    try:
+        c = hex_color.lstrip("#")
+        if len(c) == 6:
+            r = int(c[0:2], 16)
+            g = int(c[2:4], 16)
+            b = int(c[4:6], 16)
+            lum = (r * 299 + g * 587 + b * 114) / 1000
+            return "#2D2630" if lum > 165 else "#FFFFFF"
+    except Exception:
+        pass
+    return "#FFFFFF"
+
+
 def get_calendar_events(start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict[str, Any]]:
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -513,7 +704,13 @@ def get_calendar_events(start_date: Optional[str] = None, end_date: Optional[str
 
         query += " ORDER BY e.start_date ASC, e.start_time ASC;"
         cursor.execute(query, params)
-        return [dict(r) for r in cursor.fetchall()]
+        events = [dict(r) for r in cursor.fetchall()]
+        for ev in events:
+            if not ev.get("category"):
+                ev["category"] = ev.get("event_type", "Event")
+            if not ev.get("color"):
+                ev["color"] = get_category_color(ev["category"])
+        return events
 
 
 def add_calendar_event(
@@ -524,15 +721,25 @@ def add_calendar_event(
     start_time: str = "09:00",
     end_date: Optional[str] = None,
     end_time: str = "10:00",
-    notes: str = ""
+    notes: str = "",
+    color: Optional[str] = None,
+    location: Optional[str] = None,
+    category: Optional[str] = None,
+    reminder: Optional[str] = "None",
+    recurring: Optional[str] = "None"
 ) -> int:
     with get_connection() as conn:
         cursor = conn.cursor()
         now_str = datetime.now().isoformat()
+        cat_val = category or event_type or "Event"
+        color_val = color or get_category_color(cat_val)
+        loc_val = location or ""
+        rem_val = reminder or "None"
+        rec_val = recurring or "None"
         cursor.execute("""
-            INSERT INTO calendar_events (title, event_type, subject_id, start_date, start_time, end_date, end_time, notes, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
-        """, (title, event_type, subject_id, start_date, start_time, end_date or start_date, end_time, notes, now_str))
+            INSERT INTO calendar_events (title, event_type, subject_id, start_date, start_time, end_date, end_time, notes, color, location, category, reminder, recurring, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """, (title, event_type, subject_id, start_date, start_time, end_date or start_date, end_time, notes, color_val, loc_val, cat_val, rem_val, rec_val, now_str))
         conn.commit()
         return cursor.lastrowid
 
@@ -553,16 +760,53 @@ def update_calendar_event(
     start_time: str = "09:00",
     end_date: Optional[str] = None,
     end_time: str = "10:00",
-    notes: str = ""
+    notes: str = "",
+    color: Optional[str] = None,
+    location: Optional[str] = None,
+    category: Optional[str] = None,
+    reminder: Optional[str] = "None",
+    recurring: Optional[str] = "None"
 ) -> None:
     with get_connection() as conn:
         cursor = conn.cursor()
+        cat_val = category or event_type or "Event"
+        color_val = color or get_category_color(cat_val)
+        loc_val = location if location is not None else ""
+        rem_val = reminder or "None"
+        rec_val = recurring or "None"
         cursor.execute("""
             UPDATE calendar_events
-            SET title = ?, event_type = ?, subject_id = ?, start_date = ?, start_time = ?, end_date = ?, end_time = ?, notes = ?
+            SET title = ?, event_type = ?, subject_id = ?, start_date = ?, start_time = ?, end_date = ?, end_time = ?, notes = ?, color = ?, location = ?, category = ?, reminder = ?, recurring = ?
             WHERE id = ?;
-        """, (title, event_type, subject_id, start_date, start_time, end_date or start_date, end_time, notes, event_id))
+        """, (title, event_type, subject_id, start_date, start_time, end_date or start_date, end_time, notes, color_val, loc_val, cat_val, rem_val, rec_val, event_id))
         conn.commit()
+
+
+def duplicate_calendar_event(event_id: int, new_date: Optional[str] = None) -> Optional[int]:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM calendar_events WHERE id = ?;", (event_id,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        ev = dict(row)
+        target_date = new_date or ev["start_date"]
+        target_end_date = new_date or ev.get("end_date") or target_date
+        return add_calendar_event(
+            title=f"{ev['title']} (Copy)" if not new_date else ev['title'],
+            event_type=ev.get("event_type", "Event"),
+            subject_id=ev.get("subject_id"),
+            start_date=target_date,
+            start_time=ev.get("start_time", "09:00"),
+            end_date=target_end_date,
+            end_time=ev.get("end_time", "10:00"),
+            notes=ev.get("notes", ""),
+            color=ev.get("color"),
+            location=ev.get("location", ""),
+            category=ev.get("category", ev.get("event_type", "Event")),
+            reminder=ev.get("reminder", "None"),
+            recurring=ev.get("recurring", "None")
+        )
 
 
 # -------------------------------------------------------------
@@ -599,6 +843,13 @@ def get_study_sessions(limit: int = 50) -> List[Dict[str, Any]]:
             LIMIT ?;
         """, (limit,))
         return [dict(r) for r in cursor.fetchall()]
+
+
+def delete_study_session(session_id: int) -> None:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM study_sessions WHERE id = ?;", (session_id,))
+        conn.commit()
 
 
 # -------------------------------------------------------------

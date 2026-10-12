@@ -218,6 +218,25 @@ def get_icon(name: str, size: int = 18, color: str = "#4A3E4D") -> ctk.CTkImage:
         # cut out inner arc for crescent effect
         draw.ellipse([(6.5) * scale, (3.5) * scale, (17.5) * scale, (14.5) * scale], fill=(0, 0, 0, 0))
 
+    elif name == "copy":
+        rect(5.5, 5.5, 16.5, 16.5, r=1.5)
+        line(3.5, 13.5, 3.5, 3.5)
+        line(3.5, 3.5, 13.5, 3.5)
+        line(13.5, 3.5, 13.5, 5.5)
+        line(3.5, 13.5, 5.5, 13.5)
+
+    elif name == "palette":
+        circle(10, 10, 7.5)
+        circle(7.5, 7.5, 1.2, fill=True)
+        circle(12.5, 7.5, 1.2, fill=True)
+        circle(13.5, 11.5, 1.2, fill=True)
+        circle(7.5, 12.5, 1.2, fill=True)
+
+    elif name == "map_pin":
+        circle(10, 7.5, 4.5)
+        circle(10, 7.5, 1.8, fill=True)
+        line(10, 12, 10, 17.5, w=stroke*1.1)
+
     else:
         circle(10, 10, 3, fill=True)
 

@@ -77,7 +77,9 @@ class PrimaryButton(ctk.CTkButton):
         corner_radius: int = Theme.RADIUS_MD,
         **kwargs
     ):
-        colors = Theme.current()
+        fg_col = kwargs.pop("fg_color", (Theme.LIGHT["accent_pink"], Theme.DARK["accent_pink"]))
+        hover_col = kwargs.pop("hover_color", (Theme.LIGHT["accent_pink_hover"], Theme.DARK["accent_pink_hover"]))
+        txt_col = kwargs.pop("text_color", "#FFFFFF")
         super().__init__(
             parent,
             text=text,
@@ -88,9 +90,9 @@ class PrimaryButton(ctk.CTkButton):
             width=width,
             corner_radius=corner_radius,
             font=Theme.font_body_bold(),
-            fg_color=colors["accent_pink"],
-            hover_color=colors["accent_pink_hover"],
-            text_color="#FFFFFF",
+            fg_color=fg_col,
+            hover_color=hover_col,
+            text_color=txt_col,
             **kwargs
         )
 
@@ -111,7 +113,10 @@ class SecondaryButton(ctk.CTkButton):
         corner_radius: int = Theme.RADIUS_MD,
         **kwargs
     ):
-        colors = Theme.current()
+        fg_col = kwargs.pop("fg_color", (Theme.LIGHT["bg_card_secondary"], Theme.DARK["bg_card_secondary"]))
+        hover_col = kwargs.pop("hover_color", (Theme.LIGHT["bg_sidebar_hover"], Theme.DARK["bg_sidebar_hover"]))
+        border_col = kwargs.pop("border_color", (Theme.LIGHT["border"], Theme.DARK["border"]))
+        txt_col = kwargs.pop("text_color", (Theme.LIGHT["text_primary"], Theme.DARK["text_primary"]))
         super().__init__(
             parent,
             text=text,
@@ -122,11 +127,11 @@ class SecondaryButton(ctk.CTkButton):
             width=width,
             corner_radius=corner_radius,
             font=Theme.font_body_bold(),
-            fg_color=colors["bg_card_secondary"],
-            hover_color=colors["bg_sidebar_hover"],
+            fg_color=fg_col,
+            hover_color=hover_col,
             border_width=1,
-            border_color=colors["border"],
-            text_color=colors["text_primary"],
+            border_color=border_col,
+            text_color=txt_col,
             **kwargs
         )
 
@@ -144,10 +149,12 @@ class GhostButton(ctk.CTkButton):
         height: int = Theme.BTN_HEIGHT,
         width: int = 100,
         corner_radius: int = Theme.RADIUS_MD,
-        text_color: Optional[str] = None,
+        text_color: Optional[Any] = None,
         **kwargs
     ):
-        colors = Theme.current()
+        fg_col = kwargs.pop("fg_color", "transparent")
+        hover_col = kwargs.pop("hover_color", (Theme.LIGHT["bg_card_secondary"], Theme.DARK["bg_card_secondary"]))
+        txt_col = kwargs.pop("text_color", text_color or (Theme.LIGHT["text_primary"], Theme.DARK["text_primary"]))
         super().__init__(
             parent,
             text=text,
@@ -158,9 +165,9 @@ class GhostButton(ctk.CTkButton):
             width=width,
             corner_radius=corner_radius,
             font=Theme.font_body_bold(),
-            fg_color="transparent",
-            hover_color=colors["bg_card_secondary"],
-            text_color=text_color or colors["text_secondary"],
+            fg_color=fg_col,
+            hover_color=hover_col,
+            text_color=txt_col,
             **kwargs
         )
 
@@ -180,7 +187,10 @@ class DangerButton(ctk.CTkButton):
         corner_radius: int = Theme.RADIUS_MD,
         **kwargs
     ):
-        colors = Theme.current()
+        fg_col = kwargs.pop("fg_color", (Theme.LIGHT["priority_high_bg"], Theme.DARK["priority_high_bg"]))
+        hover_col = kwargs.pop("hover_color", (Theme.LIGHT["accent_pink_hover"], Theme.DARK["accent_pink_hover"]))
+        border_col = kwargs.pop("border_color", (Theme.LIGHT["priority_high_fg"], Theme.DARK["priority_high_fg"]))
+        txt_col = kwargs.pop("text_color", (Theme.LIGHT["priority_high_fg"], Theme.DARK["priority_high_fg"]))
         super().__init__(
             parent,
             text=text,
@@ -191,11 +201,11 @@ class DangerButton(ctk.CTkButton):
             width=width,
             corner_radius=corner_radius,
             font=Theme.font_body_bold(),
-            fg_color=colors["priority_high_bg"],
-            hover_color=colors["accent_pink_hover"],
+            fg_color=fg_col,
+            hover_color=hover_col,
             border_width=1,
-            border_color=colors["priority_high_fg"],
-            text_color=colors["priority_high_fg"],
+            border_color=border_col,
+            text_color=txt_col,
             **kwargs
         )
 
@@ -217,7 +227,7 @@ class SidebarItem(ctk.CTkButton):
         self.tab_id = tab_id
         self.label = label
         self.icon_name = icon_name
-        self._command = command
+        self.callback = command
         self._is_active = is_active
 
         colors = Theme.current()
@@ -235,7 +245,7 @@ class SidebarItem(ctk.CTkButton):
             fg_color=colors["bg_sidebar_active"] if is_active else "transparent",
             text_color=colors["accent_pink"] if is_active else colors["text_primary"],
             hover_color=colors["bg_sidebar_hover"],
-            command=lambda: self._command(self.tab_id)
+            command=lambda t=tab_id, cb=command: cb(t)
         )
 
     def set_active(self, active: bool):
@@ -440,10 +450,11 @@ class PageHeader(ctk.CTkFrame):
         subtitle: str = "",
         **kwargs
     ):
+        kwargs.setdefault("height", 0)
         super().__init__(parent, fg_color="transparent", **kwargs)
         colors = Theme.current()
 
-        text_container = ctk.CTkFrame(self, fg_color="transparent")
+        text_container = ctk.CTkFrame(self, fg_color="transparent", height=0)
         text_container.pack(side="left", fill="both", expand=True)
 
         self.lbl_title = ctk.CTkLabel(
@@ -465,7 +476,7 @@ class PageHeader(ctk.CTkFrame):
             )
             self.lbl_subtitle.pack(anchor="w", pady=(3, 0))
 
-        self.actions_container = ctk.CTkFrame(self, fg_color="transparent")
+        self.actions_container = ctk.CTkFrame(self, fg_color="transparent", width=0, height=0)
         self.actions_container.pack(side="right", fill="y", padx=(16, 0))
 
 

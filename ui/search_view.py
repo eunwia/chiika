@@ -41,7 +41,7 @@ class SearchView(ctk.CTkFrame):
             title="Universal Search",
             subtitle="Locate tasks, notes, courses, and calendar events instantly across your entire planner."
         )
-        header.pack(fill="x", padx=24, pady=(20, 14))
+        header.pack(fill="x", padx=24, pady=(20, 20))
 
         # 2. Filter & Search Card
         filter_card = Card(

@@ -16,6 +16,7 @@ from ui.components.widgets import (
     Card,
     PrimaryButton,
     GhostButton,
+    DangerButton,
     StyledCheckBox,
     EmptyState
 )
@@ -45,10 +46,10 @@ class HabitView(ctk.CTkFrame):
         ic_plus = icons.get_icon("plus", size=16, color="#FFFFFF")
         btn_add = PrimaryButton(
             header.actions_container,
-            text=" New Habit",
+            text="New Habit",
             image=ic_plus,
             command=self._open_add_habit_modal,
-            width=136,
+            width=140,
             height=Theme.BTN_HEIGHT
         )
         btn_add.pack(side="right")
@@ -122,7 +123,7 @@ class HabitView(ctk.CTkFrame):
                 title="No habits tracked yet",
                 description="Small daily steps lead to huge achievements.\nAdd your first habit routine to start your streak!",
                 mascot_name="hya",
-                action_text="+ Create Habit",
+                action_text="Create Habit",
                 action_command=self._open_add_habit_modal
             )
             empty.pack(fill="x", pady=24)
@@ -175,7 +176,7 @@ class HabitView(ctk.CTkFrame):
             text="Actions",
             font=Theme.font_body_bold(),
             text_color=colors["text_secondary"],
-            width=50
+            width=80
         ).pack(side="right", padx=(0, 14))
 
         for habit in habits:
@@ -236,11 +237,11 @@ class HabitView(ctk.CTkFrame):
         streak_pill.pack(anchor="center")
 
         ic_trash = icons.get_icon("trash", size=15, color=colors["priority_high_fg"])
-        btn_del = GhostButton(
+        btn_del = DangerButton(
             row_frame,
-            text="",
+            text="Delete",
             image=ic_trash,
-            width=32,
+            width=80,
             height=32,
             command=lambda h=hid: self._delete_habit(h)
         )

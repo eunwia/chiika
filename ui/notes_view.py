@@ -17,6 +17,7 @@ from ui.components.widgets import (
     PrimaryButton,
     SecondaryButton,
     GhostButton,
+    DangerButton,
     StyledEntry,
     StyledCheckBox,
     EmptyState
@@ -50,7 +51,7 @@ class NotesView(ctk.CTkFrame):
         ic_plus = icons.get_icon("plus", size=16, color="#FFFFFF")
         btn_new_note = PrimaryButton(
             header.actions_container,
-            text=" Create Note",
+            text="Create Note",
             image=ic_plus,
             command=self._open_create_note_modal,
             width=140,
@@ -87,7 +88,7 @@ class NotesView(ctk.CTkFrame):
         btn_quick_save = PrimaryButton(
             cap_inner,
             text="Save Note",
-            width=100,
+            width=110,
             height=38,
             command=self._handle_quick_capture
         )
@@ -164,11 +165,11 @@ class NotesView(ctk.CTkFrame):
         self.btn_save_top.pack(side="left", padx=(0, 8))
 
         ic_trash = icons.get_icon("trash", size=15, color=colors["priority_high_fg"])
-        self.btn_del = GhostButton(
+        self.btn_del = DangerButton(
             top_row,
-            text="",
+            text="Delete",
             image=ic_trash,
-            width=36,
+            width=88,
             height=Theme.BTN_HEIGHT,
             command=self._delete_current_note
         )

@@ -54,7 +54,7 @@ class PomodoroView(ctk.CTkFrame):
             title="Focus Timer",
             subtitle="Work in productive bursts with Chiikawa, take refreshing breaks to recharge."
         )
-        header.pack(fill="x", padx=24, pady=(20, 14))
+        header.pack(fill="x", padx=24, pady=(20, 20))
 
         # 2. Elevated Center Card
         center_card = Card(
@@ -62,10 +62,10 @@ class PomodoroView(ctk.CTkFrame):
             corner_radius=Theme.RADIUS_XL,
             hoverable=False
         )
-        center_card.pack(fill="both", expand=True, padx=24, pady=(0, 16))
+        center_card.pack(fill="both", expand=True, padx=24, pady=(0, 20))
 
         content = ctk.CTkFrame(center_card, fg_color="transparent")
-        content.pack(expand=True, pady=20)
+        content.pack(pady=20)
 
         self.seg_mode = ctk.CTkSegmentedButton(
             content,

@@ -21,7 +21,8 @@ from app import ChiikawaApp
 from theme import Theme
 from ui.components.modal import (
     TaskModal, StickyNoteModal, SubjectModal, EventModal,
-    HabitModal, NoteModal, SessionModal
+    HabitModal, NoteModal, SessionModal, ConfirmModal,
+    CategoryManagerModal, RenameCategoryModal
 )
 
 
@@ -32,13 +33,38 @@ def test_database():
     subjects = database.get_all_subjects()
     assert len(subjects) >= 4, f"Expected at least 4 subjects, got {len(subjects)}"
 
-    # Task CRUD
+    # Task CRUD (Daily & General)
     tid = database.add_task(title="Test Task", description="Testing", category="Study", priority="High")
     assert tid > 0
     database.toggle_task_completed(tid, True)
     tasks = database.get_tasks(filter_status="completed")
     assert any(t["id"] == tid for t in tasks)
     database.delete_task(tid)
+
+    # General Tasks CRUD & Separation
+    gtid = database.add_task(title="Buy Notebook", category="Personal", task_type="general")
+    assert gtid > 0
+    dtid = database.add_task(title="Daily Review", category="Study", task_type="daily")
+    assert dtid > 0
+    gen_tasks = database.get_tasks(task_type="general")
+    assert any(t["id"] == gtid for t in gen_tasks), "General task missing from get_tasks(task_type='general')"
+    assert not any(t["id"] == dtid for t in gen_tasks), "Daily task should not appear in general tasks"
+    daily_tasks = database.get_tasks(task_type="daily")
+    assert any(t["id"] == dtid for t in daily_tasks), "Daily task missing from get_tasks(task_type='daily')"
+    assert not any(t["id"] == gtid for t in daily_tasks), "General task should not appear in daily tasks"
+    database.update_task(gtid, title="Buy Notebook and Pens", description="Stationery", subject_id=None, category="Personal", priority="Low", due_date=None, due_time="23:59", task_type="general")
+    database.toggle_task_completed(gtid, True)
+    database.delete_task(gtid)
+    database.delete_task(dtid)
+
+    # Study Session CRUD & Deletion
+    sid = database.log_study_session(subject_id=None, topic="Test Math Session", duration_minutes=25)
+    assert sid > 0
+    sessions = database.get_study_sessions()
+    assert any(s["id"] == sid for s in sessions), "Logged study session not found"
+    database.delete_study_session(sid)
+    sessions_after = database.get_study_sessions()
+    assert not any(s["id"] == sid for s in sessions_after), "Study session was not deleted from database"
 
     # Sticky note CRUD
     nid = database.add_sticky_note(title="Test Sticky", content="Sticky content", color="#FEF3C7", x=100, y=120)
@@ -58,9 +84,25 @@ def test_database():
     assert note_id > 0
     database.delete_note(note_id)
 
-    # Calendar Event CRUD
-    eid = database.add_calendar_event(title="Test Event", event_type="Exam", start_date="2026-10-15")
+    # Event Category CRUD
+    cid = database.add_event_category("Project Lab", "#FF7597")
+    assert cid > 0
+    database.rename_event_category(cid, "Robotics Lab")
+    cats = database.get_event_categories()
+    assert any(c["id"] == cid and c["name"] == "Robotics Lab" for c in cats)
+    database.delete_event_category(cid)
+
+    # Calendar Event CRUD with Reminder & Recurring
+    eid = database.add_calendar_event(
+        title="Test Event",
+        event_type="Exam",
+        start_date="2026-10-15",
+        reminder="15 mins before",
+        recurring="Weekly"
+    )
     assert eid > 0
+    evs = database.get_calendar_events(start_date="2026-10-15", end_date="2026-10-15")
+    assert any(e["id"] == eid and e.get("reminder") == "15 mins before" and e.get("recurring") == "Weekly" for e in evs)
     database.update_calendar_event(eid, title="Updated Test Event", event_type="Exam", start_date="2026-10-16")
     evs = database.get_calendar_events(start_date="2026-10-16", end_date="2026-10-16")
     assert any(e["id"] == eid and e["title"] == "Updated Test Event" for e in evs)
@@ -145,11 +187,17 @@ def test_forms_and_navigation():
     ev_modal = EventModal(app, capture_save)
     ev_modal.update_idletasks()
     assert hasattr(ev_modal, "btn_submit"), "EventModal has no btn_submit!"
+    assert hasattr(ev_modal, "opt_reminder"), "EventModal has no opt_reminder!"
+    assert hasattr(ev_modal, "opt_recurring"), "EventModal has no opt_recurring!"
     ev_modal.ent_title.insert(0, "Midterm Exam")
     ev_modal.ent_start_date.delete(0, "end")
     ev_modal.ent_start_date.insert(0, "2026-10-15")
+    ev_modal.opt_reminder.set("30 mins before")
+    ev_modal.opt_recurring.set("Weekly")
     ev_modal._save()
     assert saved_data.get("title") == "Midterm Exam"
+    assert saved_data.get("reminder") == "30 mins before"
+    assert saved_data.get("recurring") == "Weekly"
     print("  [OK] EventModal verified.")
 
     # 5. HabitModal
@@ -183,6 +231,31 @@ def test_forms_and_navigation():
     assert saved_data.get("topic") == "Calculus Integration"
     print("  [OK] SessionModal verified.")
 
+    # 8. ConfirmModal
+    confirm_called = []
+    c_modal = ConfirmModal(app, title_text="Confirm Delete", message="Are you sure?", on_confirm=lambda: confirm_called.append(True))
+    c_modal.update_idletasks()
+    c_modal._handle_confirm()
+    assert confirm_called == [True], "ConfirmModal on_confirm not called"
+    print("  [OK] ConfirmModal verified.")
+
+    # 9. CategoryManagerModal & RenameCategoryModal
+    cat_modal = CategoryManagerModal(app)
+    cat_modal.update_idletasks()
+    assert hasattr(cat_modal, "cat_scroll"), "CategoryManagerModal has no cat_scroll!"
+    cat_modal._finish()
+    print("  [OK] CategoryManagerModal verified.")
+
+    ren_saved = []
+    ren_modal = RenameCategoryModal(app, 1, "Exams", lambda n: ren_saved.append(n))
+    ren_modal.update_idletasks()
+    assert hasattr(ren_modal, "btn_submit"), "RenameCategoryModal has no btn_submit!"
+    ren_modal.ent_name.delete(0, "end")
+    ren_modal.ent_name.insert(0, "Major Exams")
+    ren_modal._save()
+    assert ren_saved == ["Major Exams"]
+    print("  [OK] RenameCategoryModal verified.")
+
     # Tab navigation tests
     expected_views = [
         "dashboard", "todo", "corkboard", "calendar",
@@ -193,15 +266,51 @@ def test_forms_and_navigation():
         assert vk in app.views, f"View {vk} missing from app.views!"
         app.navigate_to(vk)
         app.update_idletasks()
-        if vk == "calendar":
+        if vk == "todo":
+            todo_view = app.views["todo"]
+            assert hasattr(todo_view, "seg_tab"), "TodoView has no seg_tab switcher!"
+            assert "Daily Tasks" in todo_view.seg_tab.cget("values")
+            assert "General Tasks" in todo_view.seg_tab.cget("values")
+            todo_view._on_tab_change("General Tasks")
+            assert todo_view.active_tab == "General Tasks"
+            todo_view._on_tab_change("Daily Tasks")
+            assert todo_view.active_tab == "Daily Tasks"
+            print("  [OK] TodoView Daily/General tab switching verified.")
+        elif vk == "study_planner":
+            sp_view = app.views["study_planner"]
+            assert hasattr(sp_view, "_confirm_delete_log"), "StudyPlannerView missing _confirm_delete_log!"
+            test_sid = database.log_study_session(subject_id=None, topic="Nav Test Session", duration_minutes=15)
+            sp_view.seg_tab.set("Study Logs")
+            sp_view._on_tab_change("Study Logs")
+            app.update_idletasks()
+            sp_view._delete_log(test_sid)
+            app.update_idletasks()
+            assert not any(s["id"] == test_sid for s in database.get_study_sessions())
+            print("  [OK] Study Planner study log deletion verified.")
+        elif vk == "calendar":
             cal_view = app.views["calendar"]
-            test_eid = database.add_calendar_event(title="Midterm Exam Calendar", event_type="Exam", start_date=cal_view.selected_date.isoformat())
+            assert hasattr(cal_view, "seg_filter"), "CalendarView missing seg_filter!"
+            assert "All" in cal_view.seg_filter.cget("values")
+            assert "Events" in cal_view.seg_filter.cget("values")
+            assert "Tasks" in cal_view.seg_filter.cget("values")
+            cal_view._on_filter_changed("Events")
+            assert cal_view.inspector_filter == "Events"
+            cal_view._on_filter_changed("Tasks")
+            assert cal_view.inspector_filter == "Tasks"
+            cal_view._on_filter_changed("All")
+            assert cal_view.inspector_filter == "All"
+            test_eid = database.add_calendar_event(title="Midterm Exam Calendar", event_type="Exam", start_date=cal_view.selected_date.isoformat(), reminder="1 hour before", recurring="None")
             test_tid = database.add_task(title="Task Due in Calendar", due_date=cal_view.selected_date.isoformat())
             cal_view._update_inspector()
             app.update_idletasks()
             cal_view._delete_event(test_eid)
             cal_view._delete_task(test_tid)
-            print("  [OK] Calendar event & task edit/delete verified.")
+            print("  [OK] Calendar event & task edit/delete & filter verified.")
+        elif vk == "settings":
+            set_view = app.views["settings"]
+            assert hasattr(set_view, "cal_cats_container"), "SettingsView missing cal_cats_container!"
+            set_view._render_category_pills()
+            print("  [OK] SettingsView Calendar categories section verified.")
         print(f"  [OK] Navigated to '{vk}' tab successfully.")
 
     # Theme switching test & Sidebar dark mode verification

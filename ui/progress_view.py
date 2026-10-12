@@ -31,7 +31,7 @@ class ProgressView(ctk.CTkFrame):
             title="Analytics & Progress",
             subtitle="Review your study consistency, focus sprint volume, and course allocations."
         )
-        header.pack(fill="x", padx=24, pady=(20, 14))
+        header.pack(fill="x", padx=24, pady=(20, 20))
 
         self.scroll = ctk.CTkScrollableFrame(
             self,
@@ -39,7 +39,7 @@ class ProgressView(ctk.CTkFrame):
             scrollbar_button_color=(Theme.LIGHT["border_subtle"], Theme.DARK["border_subtle"]),
             scrollbar_button_hover_color=(Theme.LIGHT["accent_pink"], Theme.DARK["accent_pink"])
         )
-        self.scroll.pack(fill="both", expand=True, padx=24, pady=(0, 16))
+        self.scroll.pack(fill="both", expand=True, padx=24, pady=(0, 20))
 
     def refresh(self):
         colors = Theme.current()

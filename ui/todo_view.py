@@ -29,6 +29,7 @@ class TodoView(ctk.CTkFrame):
 
     def __init__(self, parent: Any):
         super().__init__(parent, fg_color="transparent")
+        self.active_tab = "Daily Tasks"
         self.current_filter_status = "all"
         self.current_category = "All"
         self.current_priority = "All"
@@ -40,24 +41,40 @@ class TodoView(ctk.CTkFrame):
     def _build_ui(self):
         colors = Theme.current()
 
-        # 1. Page Header with Action Button
-        header = PageHeader(
+        # 1. Page Header with Tab Switcher & Action Button
+        self.header = PageHeader(
             self,
             title="Daily Tasks",
             subtitle="Organize your daily studies, assignments, and personal goals."
         )
-        header.pack(fill="x", padx=24, pady=(20, 14))
+        self.header.pack(fill="x", padx=24, pady=(20, 14))
 
         ic_plus = icons.get_icon("plus", size=16, color="#FFFFFF")
         btn_new_task = PrimaryButton(
-            header.actions_container,
-            text=" New Task",
+            self.header.actions_container,
+            text="New Task",
             image=ic_plus,
             command=self._open_new_task_modal,
             width=136,
             height=Theme.BTN_HEIGHT
         )
         btn_new_task.pack(side="right")
+
+        self.seg_tab = ctk.CTkSegmentedButton(
+            self.header.actions_container,
+            values=["Daily Tasks", "General Tasks"],
+            font=Theme.font_body(),
+            height=Theme.BTN_HEIGHT,
+            corner_radius=10,
+            selected_color=colors["accent_pink"],
+            selected_hover_color=colors["accent_pink_hover"],
+            unselected_color=colors["bg_card"],
+            unselected_hover_color=colors["bg_sidebar_hover"],
+            text_color=colors["text_primary"],
+            command=self._on_tab_change
+        )
+        self.seg_tab.set("Daily Tasks")
+        self.seg_tab.pack(side="right", padx=(0, 12))
 
         # 2. Filter & Search Toolbar Card
         toolbar = Card(
@@ -154,6 +171,17 @@ class TodoView(ctk.CTkFrame):
         )
         self.lbl_stats.pack(side="left")
 
+    def _on_tab_change(self, tab_name: str):
+        if "General" in tab_name or tab_name == "Tasks":
+            self.active_tab = "General Tasks"
+            self.header.lbl_title.configure(text="General Tasks")
+            self.header.lbl_subtitle.configure(text="One-time reminders, errands, and tasks that do not appear as daily tasks.")
+        else:
+            self.active_tab = "Daily Tasks"
+            self.header.lbl_title.configure(text="Daily Tasks")
+            self.header.lbl_subtitle.configure(text="Organize your daily studies, assignments, and personal goals.")
+        self.refresh()
+
     def _on_status_change(self, value: str):
         self.current_filter_status = value.lower()
         self.refresh()
@@ -172,28 +200,36 @@ class TodoView(ctk.CTkFrame):
         for child in self.tasks_scroll.winfo_children():
             child.destroy()
 
+        active_type = "general" if self.active_tab == "General Tasks" else "daily"
         tasks = database.get_tasks(
             filter_status=self.current_filter_status,
             category=self.current_category,
             priority=self.current_priority,
-            search_query=self.search_term or None
+            search_query=self.search_term or None,
+            task_type=active_type
         )
 
-        all_tasks = database.get_tasks()
+        all_tasks = database.get_tasks(task_type=active_type)
         total_count = len(all_tasks)
         active_count = sum(1 for t in all_tasks if not t["completed"])
         completed_count = total_count - active_count
         self.lbl_stats.configure(
-            text=f"Total: {total_count} tasks  •  Pending: {active_count}  •  Completed: {completed_count}"
+            text=f"{self.active_tab} Total: {total_count}  •  Pending: {active_count}  •  Completed: {completed_count}"
         )
 
         if not tasks:
+            if self.active_tab == "General Tasks":
+                empty_title = "No general tasks found"
+                empty_desc = "Add one-time reminders, errands, and to-dos that don't need daily recurrence."
+            else:
+                empty_title = "No daily tasks found"
+                empty_desc = "No daily tasks match your current criteria.\nCreate a task to get moving forward!"
             empty = EmptyState(
                 self.tasks_scroll,
-                title="No tasks found",
-                description="No tasks match your current filter or search criteria.\nCreate a task to get moving forward!",
+                title=empty_title,
+                description=empty_desc,
                 mascot_name="passed",
-                action_text="+ Add a Task",
+                action_text="Add a Task",
                 action_command=self._open_new_task_modal
             )
             empty.pack(fill="x", pady=24)
@@ -367,6 +403,7 @@ class TodoView(ctk.CTkFrame):
         self.refresh()
 
     def _open_new_task_modal(self):
+        default_type = "general" if self.active_tab == "General Tasks" else "daily"
         def on_saved(data):
             database.add_task(
                 title=data["title"],
@@ -375,12 +412,13 @@ class TodoView(ctk.CTkFrame):
                 category=data["category"],
                 priority=data["priority"],
                 due_date=data["due_date"],
-                due_time=data["due_time"]
+                due_time=data["due_time"],
+                task_type=data.get("task_type", default_type)
             )
             ToastNotification.show(self.winfo_toplevel(), "Task created.", color_theme="pink")
             self.refresh()
 
-        TaskModal(self.winfo_toplevel(), on_saved)
+        TaskModal(self.winfo_toplevel(), on_saved, default_task_type=default_type)
 
     def _open_edit_task_modal(self, task: dict):
         def on_saved(data):
@@ -392,9 +430,10 @@ class TodoView(ctk.CTkFrame):
                 category=data["category"],
                 priority=data["priority"],
                 due_date=data["due_date"],
-                due_time=data["due_time"]
+                due_time=data["due_time"],
+                task_type=data.get("task_type", task.get("task_type", "daily"))
             )
             ToastNotification.show(self.winfo_toplevel(), "Task updated.", color_theme="pink")
             self.refresh()
 
-        TaskModal(self.winfo_toplevel(), on_saved, task_data=task)
+        TaskModal(self.winfo_toplevel(), on_saved, task_data=task, default_task_type=task.get("task_type", "daily"))

@@ -16,9 +16,10 @@ from ui.components.widgets import (
     Card,
     PrimaryButton,
     GhostButton,
+    DangerButton,
     EmptyState
 )
-from ui.components.modal import SubjectModal, EventModal, SessionModal
+from ui.components.modal import SubjectModal, EventModal, SessionModal, ConfirmModal
 from ui.components.toast import ToastNotification
 
 
@@ -412,6 +413,17 @@ class StudyPlannerView(ctk.CTkFrame):
                 text_color=colors["text_secondary"]
             ).pack(anchor="w", pady=(3, 0))
 
+            ic_trash = icons.get_icon("trash", size=15, color=colors["priority_high_fg"])
+            btn_del = DangerButton(
+                inner,
+                text="Delete",
+                image=ic_trash,
+                width=84,
+                height=32,
+                command=lambda sid=ss["id"]: self._confirm_delete_log(sid)
+            )
+            btn_del.pack(side="right", padx=(8, 0))
+
     # Modal Handlers
     def _open_add_subject_modal(self):
         def on_saved(data):
@@ -480,3 +492,18 @@ class StudyPlannerView(ctk.CTkFrame):
             self.refresh()
 
         SessionModal(self.winfo_toplevel(), on_saved)
+
+    def _confirm_delete_log(self, session_id: int):
+        ConfirmModal(
+            self.winfo_toplevel(),
+            title_text="Delete Study Log",
+            message="Are you sure you want to delete this study log? This will remove the recorded study time from your planner.",
+            on_confirm=lambda: self._delete_log(session_id),
+            confirm_text="Delete",
+            is_danger=True
+        )
+
+    def _delete_log(self, session_id: int):
+        database.delete_study_session(session_id)
+        ToastNotification.show(self.winfo_toplevel(), "Study log deleted.", color_theme="pink")
+        self.refresh()

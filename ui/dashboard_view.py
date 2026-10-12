@@ -85,10 +85,10 @@ class DashboardView(ctk.CTkFrame):
         ic_plus = icons.get_icon("plus", size=16, color="#FFFFFF")
         self.btn_new_task = PrimaryButton(
             btn_row,
-            text=" New Task",
+            text="New Task",
             image=ic_plus,
             command=self._open_new_task_modal,
-            width=136,
+            width=140,
             height=Theme.BTN_HEIGHT
         )
         self.btn_new_task.pack(side="left", padx=(0, 12))
@@ -96,10 +96,10 @@ class DashboardView(ctk.CTkFrame):
         ic_play = icons.get_icon("play", size=14, color=colors["text_primary"])
         self.btn_start_focus = SecondaryButton(
             btn_row,
-            text=" Focus Timer",
+            text="Focus Timer",
             image=ic_play,
             command=lambda: self.on_navigate("pomodoro"),
-            width=140,
+            width=145,
             height=Theme.BTN_HEIGHT
         )
         self.btn_start_focus.pack(side="left")
@@ -181,10 +181,10 @@ class DashboardView(ctk.CTkFrame):
 
         btn_view_all = GhostButton(
             left_header,
-            text="View All →",
-            width=84,
+            text="View All",
+            width=90,
             height=32,
-            text_color=colors["accent_pink"],
+            text_color=(Theme.LIGHT["accent_pink"], Theme.DARK["accent_pink"]),
             command=lambda: self.on_navigate("todo")
         )
         btn_view_all.pack(side="right")
@@ -305,7 +305,7 @@ class DashboardView(ctk.CTkFrame):
                 title="All caught up!",
                 description="No tasks due today or all completed.\nChiikawa is cheering for you!",
                 mascot_name="passed",
-                action_text="+ Add a Task",
+                action_text="Add a Task",
                 action_command=self._open_new_task_modal
             )
             empty.pack(fill="x", pady=16)

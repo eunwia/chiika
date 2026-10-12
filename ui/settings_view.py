@@ -20,6 +20,7 @@ from ui.components.widgets import (
     StyledEntry
 )
 from ui.components.toast import ToastNotification
+from ui.components.modal import CategoryManagerModal
 
 
 class SettingsView(ctk.CTkFrame):
@@ -41,7 +42,7 @@ class SettingsView(ctk.CTkFrame):
             title="Preferences & Settings",
             subtitle="Customize your visual theme, Pomodoro sprint lengths, and app profile."
         )
-        header.pack(fill="x", padx=24, pady=(20, 14))
+        header.pack(fill="x", padx=24, pady=(20, 20))
 
         scroll = ctk.CTkScrollableFrame(
             self,
@@ -49,7 +50,7 @@ class SettingsView(ctk.CTkFrame):
             scrollbar_button_color=(Theme.LIGHT["border_subtle"], Theme.DARK["border_subtle"]),
             scrollbar_button_hover_color=(Theme.LIGHT["accent_pink"], Theme.DARK["accent_pink"])
         )
-        scroll.pack(fill="both", expand=True, padx=24, pady=(0, 16))
+        scroll.pack(fill="both", expand=True, padx=24, pady=(0, 20))
 
         # 2. Visual Theme Settings Card
         theme_card = Card(
@@ -57,7 +58,7 @@ class SettingsView(ctk.CTkFrame):
             corner_radius=Theme.RADIUS_LG,
             hoverable=False
         )
-        theme_card.pack(fill="x", pady=(0, 18))
+        theme_card.pack(fill="x", pady=(0, 16))
 
         th_inner = ctk.CTkFrame(theme_card, fg_color="transparent")
         th_inner.pack(fill="both", expand=True, padx=Theme.CARD_PAD_X, pady=Theme.CARD_PAD_Y)
@@ -100,7 +101,7 @@ class SettingsView(ctk.CTkFrame):
             corner_radius=Theme.RADIUS_LG,
             hoverable=False
         )
-        pomo_card.pack(fill="x", pady=(0, 18))
+        pomo_card.pack(fill="x", pady=(0, 16))
 
         p_inner = ctk.CTkFrame(pomo_card, fg_color="transparent")
         p_inner.pack(fill="both", expand=True, padx=Theme.CARD_PAD_X, pady=Theme.CARD_PAD_Y)
@@ -153,13 +154,52 @@ class SettingsView(ctk.CTkFrame):
         )
         btn_save_timer.pack(anchor="w")
 
-        # 4. User Profile Name Card
+        # 4. Calendar & Event Categories Customization Card
+        cal_card = Card(
+            scroll,
+            corner_radius=Theme.RADIUS_LG,
+            hoverable=False
+        )
+        cal_card.pack(fill="x", pady=(0, 16))
+
+        c_inner = ctk.CTkFrame(cal_card, fg_color="transparent")
+        c_inner.pack(fill="both", expand=True, padx=Theme.CARD_PAD_X, pady=Theme.CARD_PAD_Y)
+
+        ctk.CTkLabel(
+            c_inner,
+            text="Calendar Event Categories & Colors",
+            font=Theme.font_card_title(),
+            text_color=colors["text_primary"]
+        ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            c_inner,
+            text="Manage custom categories, rename, recolor, and assign pastel palettes to deadlines & exams.",
+            font=Theme.font_body(),
+            text_color=colors["text_secondary"]
+        ).pack(anchor="w", pady=(2, 12))
+
+        self.cal_cats_container = ctk.CTkFrame(c_inner, fg_color="transparent")
+        self.cal_cats_container.pack(fill="x", pady=(0, 14))
+        self._render_category_pills()
+
+        btn_manage_cats = SecondaryButton(
+            c_inner,
+            text="Manage Categories & Colors",
+            image=icons.get_icon("palette", size=15, color=colors["accent_pink"]),
+            height=Theme.BTN_HEIGHT,
+            width=230,
+            command=self._open_category_manager
+        )
+        btn_manage_cats.pack(anchor="w")
+
+        # 5. User Profile Name Card
         prof_card = Card(
             scroll,
             corner_radius=Theme.RADIUS_LG,
             hoverable=False
         )
-        prof_card.pack(fill="x", pady=(0, 18))
+        prof_card.pack(fill="x", pady=(0, 16))
 
         prof_inner = ctk.CTkFrame(prof_card, fg_color="transparent")
         prof_inner.pack(fill="both", expand=True, padx=Theme.CARD_PAD_X, pady=Theme.CARD_PAD_Y)
@@ -270,6 +310,34 @@ class SettingsView(ctk.CTkFrame):
         name = self.ent_name.get().strip() or "Chiikawa Friend"
         database.set_setting("user_name", name)
         ToastNotification.show(self.winfo_toplevel(), f"Name updated to {name}.", color_theme="mint")
+
+    def _render_category_pills(self):
+        for child in self.cal_cats_container.winfo_children():
+            child.destroy()
+
+        categories = database.get_event_categories()
+        pills_row = ctk.CTkFrame(self.cal_cats_container, fg_color="transparent")
+        pills_row.pack(fill="x")
+
+        for cat in categories:
+            txt_col = database.get_contrast_text_color(cat["color"])
+            pill = ctk.CTkLabel(
+                pills_row,
+                text=f"  {cat['name']}  ",
+                font=Theme.font_tag(),
+                fg_color=cat["color"],
+                text_color=txt_col,
+                corner_radius=6,
+                height=26
+            )
+            pill.pack(side="left", padx=(0, 6), pady=2)
+
+    def _open_category_manager(self):
+        def on_changed():
+            self._render_category_pills()
+            ToastNotification.show(self.winfo_toplevel(), "Event categories updated.", color_theme="pink")
+
+        CategoryManagerModal(self.winfo_toplevel(), on_changed=on_changed)
 
     def _reload_sample_data(self):
         database.reset_database()
