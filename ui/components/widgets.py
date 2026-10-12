@@ -80,12 +80,13 @@ class PrimaryButton(ctk.CTkButton):
         fg_col = kwargs.pop("fg_color", (Theme.LIGHT["accent_pink"], Theme.DARK["accent_pink"]))
         hover_col = kwargs.pop("hover_color", (Theme.LIGHT["accent_pink_hover"], Theme.DARK["accent_pink_hover"]))
         txt_col = kwargs.pop("text_color", "#FFFFFF")
+        compound = kwargs.pop("compound", "left")
         super().__init__(
             parent,
             text=text,
             command=command,
             image=image,
-            compound="left" if image else "none",
+            compound=compound,
             height=height,
             width=width,
             corner_radius=corner_radius,
@@ -117,12 +118,13 @@ class SecondaryButton(ctk.CTkButton):
         hover_col = kwargs.pop("hover_color", (Theme.LIGHT["bg_sidebar_hover"], Theme.DARK["bg_sidebar_hover"]))
         border_col = kwargs.pop("border_color", (Theme.LIGHT["border"], Theme.DARK["border"]))
         txt_col = kwargs.pop("text_color", (Theme.LIGHT["text_primary"], Theme.DARK["text_primary"]))
+        compound = kwargs.pop("compound", "left")
         super().__init__(
             parent,
             text=text,
             command=command,
             image=image,
-            compound="left" if image else "none",
+            compound=compound,
             height=height,
             width=width,
             corner_radius=corner_radius,
@@ -155,12 +157,13 @@ class GhostButton(ctk.CTkButton):
         fg_col = kwargs.pop("fg_color", "transparent")
         hover_col = kwargs.pop("hover_color", (Theme.LIGHT["bg_card_secondary"], Theme.DARK["bg_card_secondary"]))
         txt_col = kwargs.pop("text_color", text_color or (Theme.LIGHT["text_primary"], Theme.DARK["text_primary"]))
+        compound = kwargs.pop("compound", "left")
         super().__init__(
             parent,
             text=text,
             command=command,
             image=image,
-            compound="left" if image else "none",
+            compound=compound,
             height=height,
             width=width,
             corner_radius=corner_radius,
@@ -191,12 +194,13 @@ class DangerButton(ctk.CTkButton):
         hover_col = kwargs.pop("hover_color", (Theme.LIGHT["accent_pink_hover"], Theme.DARK["accent_pink_hover"]))
         border_col = kwargs.pop("border_color", (Theme.LIGHT["priority_high_fg"], Theme.DARK["priority_high_fg"]))
         txt_col = kwargs.pop("text_color", (Theme.LIGHT["priority_high_fg"], Theme.DARK["priority_high_fg"]))
+        compound = kwargs.pop("compound", "left")
         super().__init__(
             parent,
             text=text,
             command=command,
             image=image,
-            compound="left" if image else "none",
+            compound=compound,
             height=height,
             width=width,
             corner_radius=corner_radius,

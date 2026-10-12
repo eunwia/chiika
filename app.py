@@ -157,8 +157,8 @@ class ChiikawaApp(ctk.CTk):
         # Smooth settle micro-transition without flicker
         try:
             view.grid_configure(pady=(6, 0))
-            self.after(25, lambda: view.grid_configure(pady=(2, 0)))
-            self.after(50, lambda: view.grid_configure(pady=(0, 0)))
+            self.after(25, lambda: view.winfo_exists() and view.grid_configure(pady=(2, 0)))
+            self.after(50, lambda: view.winfo_exists() and view.grid_configure(pady=(0, 0)))
         except Exception:
             pass
 
